@@ -3,6 +3,19 @@
 .env*
 .env*.local
 
+# Secrets
+.flask_secret
+
+# Browser profile (contains login data & cookies)
+.browser_profile/
+
+# Cache files
+.job_source_cache/
+.jobcache/
+
+# Claude settings
+.claude/
+
 # Python
 __pycache__/
 *.py[cod]
