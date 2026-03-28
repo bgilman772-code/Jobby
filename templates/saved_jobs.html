@@ -1,0 +1,253 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>My Applications</title>
+    <style>
+      :root {
+        --brand: #1e3a6e;
+        --brand-mid: #2756a8;
+        --brand-light: #eef3fb;
+        --green: #1a7a2a;
+        --green-light: #e8f5eb;
+        --text: #1a1a1a;
+        --text-2: #555;
+        --text-3: #888;
+        --border: #dde1e8;
+        --bg: #f4f6f9;
+        --card: #ffffff;
+        --shadow: 0 1px 3px rgba(0,0,0,0.06);
+        --radius: 8px;
+      }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+             margin: 0; background: var(--bg); color: var(--text); }
+
+      .topbar { background: var(--brand); color: white; padding: 0 1.5rem;
+                height: 52px; display: flex; align-items: center; gap: 1rem; }
+      .topbar h1 { margin: 0; font-size: 1.05rem; font-weight: 600; flex: 1; letter-spacing: -0.01em; }
+      .topbar a  { color: rgba(255,255,255,0.72); text-decoration: none; font-size: 0.85rem;
+                   font-weight: 500; transition: color 0.15s; }
+      .topbar a:hover { color: white; }
+
+      .container { max-width: 1080px; margin: 1.5rem auto; padding: 0 1rem; }
+
+      /* Status tabs */
+      .tabs { display: flex; gap: 5px; margin-bottom: 1.2rem; flex-wrap: wrap; }
+      .tab { padding: 6px 16px; border-radius: 16px; text-decoration: none;
+             font-size: 0.83rem; font-weight: 500; background: var(--card);
+             color: var(--text-2); border: 1px solid var(--border); transition: all 0.15s; }
+      .tab:hover { border-color: var(--brand-mid); color: var(--brand-mid); }
+      .tab.active { background: var(--brand); color: white; border-color: var(--brand); }
+
+      /* Stats strip */
+      .stats-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1.2rem; }
+      .stat-pill { background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+                   padding: 5px 14px; font-size: 0.81rem; color: var(--text-2); }
+      .stat-pill strong { color: var(--brand); font-weight: 700; }
+
+      /* Table */
+      .table-wrap { background: var(--card); border: 1px solid var(--border);
+                    border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+      table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+      thead tr { background: var(--brand); color: white; }
+      th { padding: 10px 12px; font-weight: 500; font-size: 0.78rem; text-align: left;
+           letter-spacing: 0.01em; }
+      td { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+      tr:last-child td { border-bottom: none; }
+      tr:hover td { background: #fafbfd; }
+
+      .job-title { font-weight: 600; font-size: 0.9rem; }
+      .job-meta  { font-size: 0.74rem; color: var(--text-3); margin-top: 3px; }
+
+      /* Tier badges */
+      .tier-strong { display: inline-block; background: var(--green-light); color: #1a5c20;
+                     font-size: 0.71rem; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
+      .tier-qual   { display: inline-block; background: #ddeeff; color: #1a4a9a;
+                     font-size: 0.71rem; padding: 2px 8px; border-radius: 8px; }
+      .tier-reach  { display: inline-block; background: var(--bg); color: var(--text-3);
+                     font-size: 0.71rem; padding: 2px 8px; border-radius: 8px; }
+      .remote-tag  { display: inline-block; background: #ddeeff; color: #1a4a8a;
+                     font-size: 0.71rem; padding: 2px 7px; border-radius: 8px; margin-left: 4px; }
+
+      /* Status */
+      .status-saved        { color: var(--text-2); }
+      .status-applied      { color: var(--brand-mid); font-weight: 600; }
+      .status-interviewing { color: #6d28d9; font-weight: 600; }
+      .status-offer        { color: var(--green); font-weight: 600; }
+      .status-rejected     { color: #c00; }
+
+      .score-val { font-weight: 700; font-size: 0.98rem; color: var(--brand); }
+      .score-cap { font-size: 0.7rem; color: #bbb; }
+
+      select { padding: 4px 7px; border: 1px solid var(--border); border-radius: 4px;
+               font-size: 0.81rem; background: white; font-family: inherit; }
+      select:focus { outline: none; border-color: var(--brand-mid); }
+
+      .btn-sm { padding: 4px 10px; font-size: 0.78rem; border: none; border-radius: 4px;
+                cursor: pointer; font-family: inherit; font-weight: 500; }
+      .btn-upd  { background: var(--brand); color: white; }
+      .btn-upd:hover { background: #16305c; }
+      .btn-del  { background: #c00; color: white; }
+      .btn-del:hover { background: #a00; }
+      .btn-note { background: white; color: var(--text-2); border: 1px solid var(--border); }
+      .btn-note:hover { background: var(--bg); }
+
+      /* Notes inline editor */
+      .notes-row { display: none; }
+      .notes-row td { background: #fffdf0; padding: 0.7rem 1rem; border-bottom: 1px solid #f0f2f5; }
+      .notes-row textarea { width: 100%; font-size: 0.85rem; border: 1px solid var(--border);
+                            border-radius: 4px; padding: 6px 9px; resize: vertical;
+                            font-family: inherit; }
+      .notes-row textarea:focus { outline: none; border-color: var(--brand-mid); }
+      .notes-existing { font-size: 0.77rem; color: var(--text-3); font-style: italic; margin-top: 3px; }
+
+      .link-ext { font-size: 0.75rem; color: var(--brand-mid); text-decoration: none; }
+      .link-ext:hover { text-decoration: underline; }
+
+      .empty { text-align: center; padding: 3rem 1rem; color: var(--text-3); }
+      .empty a { color: var(--brand-mid); }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>My Applications</h1>
+      <a href="/">Home</a>
+      <a href="/find-matches">Find Jobs</a>
+    </div>
+
+    <div class="container">
+
+      <!-- Status tabs -->
+      <div class="tabs">
+        {% set statuses = [('', 'All'), ('saved', 'Saved'), ('applied', 'Applied'),
+                           ('interviewing', 'Interviewing'), ('offer', 'Offer'), ('rejected', 'Rejected')] %}
+        {% for val, label in statuses %}
+          <a class="tab {% if status_filter == val %}active{% endif %}"
+             href="/saved-jobs{% if val %}?status={{ val }}{% endif %}">{{ label }}</a>
+        {% endfor %}
+      </div>
+
+      <!-- Stats strip -->
+      {% if counts %}
+        <div class="stats-strip">
+          {% for s, n in counts.items() %}
+            <div class="stat-pill"><strong>{{ n }}</strong> {{ s.title() }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if not applications %}
+        <div class="empty">
+          No applications here yet.<br/>
+          <a href="/find-matches">Find matching jobs</a> and save them to your tracker.
+        </div>
+      {% else %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Job</th>
+                <th>Company</th>
+                <th>Salary</th>
+                <th>Score</th>
+                <th>Tier</th>
+                <th>Status</th>
+                <th>Saved</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for app in applications %}
+                <tr id="row-{{ app.id }}">
+                  <td>
+                    <div class="job-title">
+                      {% if app.job_url %}
+                        <a class="link-ext" href="{{ app.job_url }}" target="_blank" rel="noopener">
+                          {{ app.job_title or '&mdash;' }} &#8599;
+                        </a>
+                      {% else %}
+                        {{ app.job_title or '&mdash;' }}
+                      {% endif %}
+                    </div>
+                    <div class="job-meta">
+                      {{ app.category or '' }}
+                      {% if app.location %}&middot; {{ app.location }}{% endif %}
+                      {% if app.remote %}<span class="remote-tag">Remote</span>{% endif %}
+                    </div>
+                    {% if app.notes %}
+                      <div class="notes-existing">{{ app.notes[:80] }}{% if app.notes|length > 80 %}&hellip;{% endif %}</div>
+                    {% endif %}
+                  </td>
+                  <td>{{ app.company or '&mdash;' }}</td>
+                  <td style="font-size:0.84rem;white-space:nowrap">{{ app.salary or '&mdash;' }}</td>
+                  <td>
+                    <span class="score-val">{{ app.ranking_score or '&mdash;' }}</span>
+                    {% if app.ranking_score %}<span class="score-cap">/105</span>{% endif %}
+                  </td>
+                  <td>
+                    {% set tier = app.qualification_tier or '' %}
+                    {% if tier == 'Strongly Qualified' %}
+                      <span class="tier-strong">SQ</span>
+                    {% elif tier == 'Reach' %}
+                      <span class="tier-reach">Reach</span>
+                    {% elif tier == 'Qualified' %}
+                      <span class="tier-qual">Qualified</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <span class="status-{{ app.status }}">{{ app.status.title() }}</span>
+                    {% if app.applied_at %}
+                      <div style="font-size:0.71rem;color:var(--text-3)">{{ app.applied_at[:10] }}</div>
+                    {% endif %}
+                  </td>
+                  <td style="font-size:0.77rem;color:var(--text-3);white-space:nowrap">
+                    {{ (app.created_at or '')[:10] }}
+                  </td>
+                  <td>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+                      <form method="post" action="/update-application/{{ app.id }}"
+                            style="display:flex;gap:3px;align-items:center">
+                        <select name="status">
+                          {% for s in ['saved','applied','interviewing','offer','rejected'] %}
+                            <option value="{{ s }}" {% if app.status == s %}selected{% endif %}>{{ s.title() }}</option>
+                          {% endfor %}
+                        </select>
+                        <button class="btn-sm btn-upd" type="submit">Save</button>
+                      </form>
+                      <button class="btn-sm btn-note"
+                              onclick="toggleNotes({{ app.id }})">Notes</button>
+                      <form method="post" action="/delete-application/{{ app.id }}" style="display:inline"
+                            onsubmit="return confirm('Remove this application?')">
+                        <button class="btn-sm btn-del" type="submit">Remove</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+                <tr class="notes-row" id="notes-{{ app.id }}">
+                  <td colspan="8">
+                    <form method="post" action="/update-notes/{{ app.id }}">
+                      <textarea name="notes" rows="3" placeholder="Add notes about this application&hellip;">{{ app.notes or '' }}</textarea>
+                      <div style="margin-top:6px;display:flex;gap:6px">
+                        <button class="btn-sm btn-upd" type="submit">Save Notes</button>
+                        <button class="btn-sm btn-note" type="button"
+                                onclick="toggleNotes({{ app.id }})">Cancel</button>
+                      </div>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+
+    <script>
+      function toggleNotes(id) {
+        const row = document.getElementById('notes-' + id);
+        row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
+      }
+    </script>
+  </body>
+</html>

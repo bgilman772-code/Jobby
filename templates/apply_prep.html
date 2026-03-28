@@ -1,0 +1,261 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Prepare Applications</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: sans-serif; margin: 0; background: #f7f8fa; color: #222; }
+      .topbar { background: #1a3a6a; color: white; padding: 0.75rem 1.5rem;
+                display: flex; align-items: center; gap: 1rem; }
+      .topbar h1 { margin: 0; font-size: 1.15rem; flex: 1; }
+      .topbar a  { color: #aac8f0; text-decoration: none; font-size: 0.9rem; }
+
+      .layout { display: flex; max-width: 1160px; margin: 1.5rem auto; gap: 1.5rem; padding: 0 1rem; }
+
+      /* ── Job list panel ── */
+      .job-panel { width: 360px; flex-shrink: 0; }
+      .job-panel h2 { font-size: 1rem; margin: 0 0 0.8rem; }
+      .job-row { background: white; border: 1px solid #e0e0e0; border-radius: 7px;
+                 padding: 0.65rem 0.85rem; margin-bottom: 0.5rem;
+                 display: flex; align-items: flex-start; gap: 0.6rem; }
+      .job-row.deselected { opacity: 0.45; }
+      .job-row label { display: flex; align-items: flex-start; gap: 0.55rem;
+                       cursor: pointer; flex: 1; }
+      .job-row input[type=checkbox] { margin-top: 3px; width: 16px; height: 16px;
+                                       accent-color: #1a5c9a; flex-shrink: 0; }
+      .jr-title { font-size: 0.88rem; font-weight: 600; line-height: 1.3; }
+      .jr-sub   { font-size: 0.78rem; color: #666; margin-top: 1px; }
+      .jr-link  { font-size: 0.75rem; color: #1a5c9a; text-decoration: none; }
+      .jr-link:hover { text-decoration: underline; }
+
+      /* ── Info form panel ── */
+      .form-panel { flex: 1; }
+      .form-panel h2 { font-size: 1rem; margin: 0 0 0.3rem; }
+      .form-panel .sub { font-size: 0.83rem; color: #666; margin-bottom: 1rem; }
+
+      .section { background: white; border: 1px solid #e0e0e0; border-radius: 8px;
+                 padding: 1.1rem 1.3rem; margin-bottom: 1.1rem; }
+      .section h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em;
+                    color: #888; margin: 0 0 0.85rem; }
+      .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem 1rem; }
+      .field-grid.single { grid-template-columns: 1fr; }
+      .field { display: flex; flex-direction: column; gap: 3px; }
+      .field label { font-size: 0.82rem; color: #555; font-weight: 600; }
+      .field input, .field select, .field textarea {
+        padding: 6px 9px; border: 1px solid #ccc; border-radius: 5px;
+        font-size: 0.88rem; font-family: inherit; }
+      .field input:focus, .field select:focus, .field textarea:focus {
+        border-color: #1a5c9a; outline: none; }
+      .field .autofilled { background: #f0f6ff; }
+      .field .needs-input { background: #fff8e8; border-color: #e0b040; }
+      .field-note { font-size: 0.74rem; color: #888; margin-top: 1px; }
+      .required-star { color: #c00; }
+
+      .launch-bar { background: white; border: 1px solid #e0e0e0; border-radius: 8px;
+                    padding: 1.1rem 1.3rem; }
+      .launch-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+      .launch-divider { font-size: 0.82rem; color: #999; }
+      .btn-launch { padding: 10px 28px; background: #1a7a1a; color: white; border: none;
+                    border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; }
+      .btn-launch:hover { background: #156015; }
+      .btn-quick  { background: #1a3a9a; }
+      .btn-quick:hover { background: #142d80; }
+      .btn-back { padding: 9px 18px; background: #eee; color: #333; border: none;
+                  border-radius: 6px; font-size: 0.9rem; cursor: pointer;
+                  text-decoration: none; }
+      .mode-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; font-size: 0.8rem; }
+      .mode-note  { padding: 0.5rem 0.7rem; border-radius: 5px; line-height: 1.5; }
+      .mode-note.review { background: #f0f6f0; border: 1px solid #a0c8a0; color: #1a4a1a; }
+      .mode-note.quick  { background: #eef0ff; border: 1px solid #9aaae8; color: #1a2a6a; }
+      .note { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;
+              padding: 0.65rem 0.9rem; font-size: 0.83rem; margin-bottom: 1rem; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>Prepare Applications &mdash; {{ jobs|length }} job{{ 's' if jobs|length != 1 }}</h1>
+      <a href="/">← Home</a>
+    </div>
+
+    <form method="POST" action="/launch-batch/{{ batch_id }}">
+      <div class="layout">
+
+        <!-- ── Left: job list ── -->
+        <div class="job-panel">
+          <h2>Jobs to apply to</h2>
+          <p style="font-size:0.82rem;color:#666;margin:0 0 0.8rem">
+            Uncheck any you want to skip.</p>
+          {% for job in jobs %}
+            <div class="job-row" id="jr-{{ loop.index0 }}">
+              <label>
+                <input type="checkbox" name="apply_to" value="{{ loop.index0 }}"
+                       checked onchange="toggleJobRow({{ loop.index0 }}, this.checked)"/>
+                <div>
+                  <div class="jr-title">{{ job.get('title','') }}</div>
+                  <div class="jr-sub">{{ job.get('company_name') or job.get('company','') }}</div>
+                  {% if job.get('url') %}
+                    <a class="jr-link" href="{{ job.get('url') }}" target="_blank" rel="noopener">
+                      View posting ↗
+                    </a>
+                  {% endif %}
+                </div>
+              </label>
+            </div>
+          {% endfor %}
+        </div>
+
+        <!-- ── Right: info form ── -->
+        <div class="form-panel">
+          <h2>Application information</h2>
+          <p class="sub">
+            Fields highlighted in <span style="background:#f0f6ff;padding:1px 5px;border-radius:3px">blue</span>
+            are auto-filled from your profile.
+            Fields highlighted in <span style="background:#fff8e8;padding:1px 5px;border-radius:3px;border:1px solid #e0b040">yellow</span>
+            need your input before applying.
+          </p>
+
+          <div class="note">
+            Fill in the fields below, then choose how you want to apply.
+          </div>
+
+          <!-- Contact info -->
+          <div class="section">
+            <h3>Contact Information</h3>
+            <div class="field-grid">
+              <div class="field">
+                <label>Full Name</label>
+                <input type="text" name="name" value="{{ profile.get('name','') }}" class="autofilled"/>
+              </div>
+              <div class="field">
+                <label>Email</label>
+                <input type="email" name="email" value="{{ profile.get('email','') }}" class="autofilled"/>
+              </div>
+              <div class="field">
+                <label>Phone</label>
+                <input type="tel" name="phone" value="{{ profile.get('phone','') }}" class="autofilled"/>
+              </div>
+              <div class="field">
+                <label>City / Location</label>
+                <input type="text" name="city" value="{{ profile.get('city','') }}" class="autofilled"/>
+              </div>
+              <div class="field">
+                <label>LinkedIn URL</label>
+                <input type="url" name="linkedin" value="{{ profile.get('linkedin','') }}" class="autofilled"/>
+              </div>
+              <div class="field">
+                <label>Portfolio / Website</label>
+                <input type="url" name="website" value="{{ profile.get('website','') }}" class="autofilled"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Work eligibility -->
+          <div class="section">
+            <h3>Work Eligibility <span class="required-star">*</span></h3>
+            <div class="field-grid">
+              <div class="field">
+                <label>Authorized to work in the US? <span class="required-star">*</span></label>
+                <select name="work_auth" class="needs-input" required>
+                  <option value="">— select —</option>
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Will you require visa sponsorship? <span class="required-star">*</span></label>
+                <select name="sponsorship" class="needs-input" required>
+                  <option value="">— select —</option>
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Compensation & availability -->
+          <div class="section">
+            <h3>Compensation &amp; Availability</h3>
+            <div class="field-grid">
+              <div class="field">
+                <label>Desired salary / salary expectation</label>
+                <input type="text" name="salary_expectation" placeholder="e.g. $150,000"
+                       class="needs-input"/>
+                <span class="field-note">Leave blank to skip this field on forms</span>
+              </div>
+              <div class="field">
+                <label>Earliest available start date</label>
+                <input type="text" name="start_date" placeholder="e.g. Immediately, 2 weeks"
+                       class="needs-input"/>
+              </div>
+              <div class="field">
+                <label>How did you hear about the role?</label>
+                <input type="text" name="referral" placeholder="e.g. LinkedIn, Job board"
+                       class="needs-input"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cover letter -->
+          <div class="section">
+            <h3>Cover Letter</h3>
+            <div class="field-grid single">
+              <div class="field">
+                <label>Cover letter text (used for all selected jobs)</label>
+                <textarea name="cover_letter" rows="8" class="autofilled"
+                          placeholder="Paste your cover letter here…">{{ cover_text }}</textarea>
+                <span class="field-note">The filler will try to paste this into any cover letter field it finds.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Launch -->
+          <div class="launch-bar">
+            <input type="hidden" name="mode" id="mode-field" value="review"/>
+            <div class="launch-row">
+              <button class="btn-launch" type="submit" onclick="setMode('review')">
+                Review &amp; Apply
+              </button>
+              <span class="launch-divider">or</span>
+              <button class="btn-launch btn-quick" type="submit"
+                      onclick="return confirmQuick()">
+                &#9889; Quick Apply All &mdash; Auto-Submit
+              </button>
+              <a class="btn-back" href="javascript:history.back()">← Back</a>
+            </div>
+            <div class="mode-notes">
+              <div class="mode-note review">
+                <strong>Review &amp; Apply</strong><br>
+                Opens one browser per job. You see the filled form and confirm each submission.
+              </div>
+              <div class="mode-note quick">
+                <strong>Quick Apply All</strong><br>
+                Runs up to 4 jobs at once in the background. Forms are filled and submitted automatically &mdash; no confirmation step.
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+    <script>
+      function toggleJobRow(idx, checked) {
+        const row = document.getElementById('jr-' + idx);
+        row.classList.toggle('deselected', !checked);
+      }
+      function setMode(m) {
+        document.getElementById('mode-field').value = m;
+      }
+      function confirmQuick() {
+        const n = document.querySelectorAll('input[name="apply_to"]:checked').length;
+        const ok = confirm(
+          `Quick Apply will automatically fill and submit all ${n} selected application(s) without review.\n\n` +
+          `Make sure your profile information above is correct before continuing.\n\nProceed?`
+        );
+        if (ok) setMode('quick');
+        return ok;
+      }
+    </script>
+  </body>
+</html>

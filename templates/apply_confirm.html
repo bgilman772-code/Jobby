@@ -1,0 +1,423 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Auto-Fill — {{ job.get('title','') }}</title>
+    <style>
+      :root {
+        --brand: #1e3a6e;
+        --brand-mid: #2756a8;
+        --brand-light: #eef3fb;
+        --green: #1a7a2a;
+        --green-light: #e8f5eb;
+        --text: #1a1a1a;
+        --text-2: #555;
+        --text-3: #888;
+        --border: #dde1e8;
+        --bg: #f4f6f9;
+        --radius: 8px;
+        --shadow: 0 1px 4px rgba(0,0,0,0.07);
+      }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+             max-width: 680px; margin: 2.5rem auto; padding: 0 1rem; color: var(--text); }
+
+      h1 { font-size: 1.25rem; margin-bottom: 0.2rem; letter-spacing: -0.01em; }
+      .company { color: var(--text-2); margin-bottom: 0.4rem; font-size: 0.92rem; }
+      .job-url  { font-size: 0.77rem; color: var(--text-3); word-break: break-all; margin-bottom: 1.2rem; }
+      .job-url a { color: var(--brand-mid); text-decoration: none; }
+      .job-url a:hover { text-decoration: underline; }
+
+      /* Nav */
+      .nav-back { display: inline-block; padding: 6px 14px; background: var(--bg);
+                  border: 1px solid var(--border); border-radius: 5px; color: var(--text-2);
+                  text-decoration: none; font-size: 0.84rem; font-weight: 500; margin-bottom: 1.4rem; }
+      .nav-back:hover { background: #eaedf2; }
+
+      /* Recovery banner */
+      #recovery-banner { display: none; background: var(--brand-light); border: 1px solid #b0c8e8;
+                         border-radius: var(--radius); padding: 0.65rem 1rem; font-size: 0.85rem;
+                         margin-bottom: 1rem; color: var(--brand); }
+
+      /* Notice */
+      .notice { background: var(--brand-light); border: 1px solid #b0c8e8; border-radius: var(--radius);
+                padding: 0.8rem 1.1rem; font-size: 0.86rem; margin-bottom: 1rem; line-height: 1.55; color: #1a2e5a; }
+
+      /* Status box */
+      .status-box { background: white; border: 1px solid var(--border); border-radius: var(--radius);
+                    box-shadow: var(--shadow); padding: 1.2rem 1.4rem; margin: 1rem 0; }
+      .status-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0.7rem; }
+
+      /* Spinner */
+      .spin-ring { width: 22px; height: 22px; border: 2px solid var(--border);
+                   border-top-color: var(--brand-mid); border-radius: 50%;
+                   display: inline-block; animation: spin 0.85s linear infinite; flex-shrink: 0; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .status-dot { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
+      .status-text { font-weight: 600; font-size: 1rem; }
+      .status-starting   { color: var(--text-2); }
+      .status-navigating { color: var(--brand-mid); }
+      .status-filling    { color: #6d28d9; }
+      .status-awaiting   { color: #b34a00; }
+      .status-submitted  { color: var(--green); }
+      .status-cancelled  { color: var(--text-3); }
+      .status-error      { color: #c00; }
+
+      /* Live log */
+      .live-log { background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
+                  padding: 0.55rem 0.85rem; margin-top: 0.8rem; max-height: 120px;
+                  overflow-y: auto; font-size: 0.78rem; color: #555; }
+      .live-log .log-line { padding: 2px 0; border-bottom: 1px solid #ebebeb; }
+      .live-log .log-line:last-child { border-bottom: none; font-weight: 600; color: var(--text); }
+
+      /* Fields */
+      .fields { margin-top: 0.8rem; }
+      .fields summary { font-size: 0.84rem; color: var(--text-2); cursor: pointer; user-select: none; }
+      .fields ul { margin: 0.4rem 0 0 1rem; padding: 0; font-size: 0.8rem; color: var(--text-2); }
+      .fields li { margin-bottom: 0.2rem; }
+
+      /* Error */
+      #error-msg { display: none; background: #fff0f0; border: 1px solid #f0b8b8;
+                   border-radius: 6px; padding: 0.65rem 1rem; margin-top: 0.7rem;
+                   font-size: 0.87rem; color: #c00; }
+
+      /* Countdown */
+      .countdown-bar { background: #fffbea; border: 1px solid #e8c840; border-radius: var(--radius);
+                       padding: 0.75rem 1.1rem; margin: 1rem 0; font-size: 0.88rem;
+                       display: none; color: #5a4200; line-height: 1.5; }
+      #countdown-timer { font-size: 1.05rem; font-weight: 700; color: #b34a00; }
+
+      /* Action buttons */
+      .actions { display: flex; gap: 10px; margin-top: 1.2rem; flex-wrap: wrap; }
+      .btn { padding: 11px 24px; border-radius: 6px; border: none; cursor: pointer;
+             font-size: 0.95rem; font-weight: 600; font-family: inherit;
+             text-decoration: none; display: inline-block; transition: opacity 0.15s; }
+      .btn:hover { opacity: 0.87; }
+      .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+      .btn-confirm { background: var(--green); color: white; font-size: 1rem; padding: 13px 28px; }
+      .btn-cancel  { background: #c00; color: white; }
+      .btn-focus   { background: var(--brand); color: white; font-size: 0.87rem; padding: 9px 16px; }
+      .btn-back-sm { background: var(--bg); color: var(--text-2); border: 1px solid var(--border);
+                     font-size: 0.87rem; }
+
+      /* Done banner */
+      #done-banner { display: none; background: var(--green-light); border: 1px solid #4a9a5a;
+                     border-radius: var(--radius); padding: 1.1rem 1.5rem; margin-top: 1.2rem; }
+      #done-banner strong { color: var(--green); font-size: 1.05rem; display: block; margin-bottom: 0.4rem; }
+      #done-banner .sub { color: var(--text-2); font-size: 0.88rem; margin-bottom: 0.8rem; }
+
+      /* Focus row */
+      #focus-row { display: none; margin-top: 0.9rem; display: none; align-items: center; gap: 10px; }
+      #focus-row span { font-size: 0.8rem; color: var(--text-3); }
+    </style>
+  </head>
+  <body>
+
+    <div id="recovery-banner">
+      Session recovered — resuming status updates.
+    </div>
+
+    <a class="nav-back" href="/preview/{{ cache_key }}/{{ idx }}">&larr; Back to Preview</a>
+
+    <h1>Auto-Fill: {{ job.get('title','') }}</h1>
+    <div class="company">{{ job.get('company_name') or job.get('company','') }}</div>
+    {% if job.get('url') %}
+      <div class="job-url">Applying to: <a href="{{ job.get('url') }}" target="_blank" rel="noopener">{{ job.get('url') }}</a></div>
+    {% endif %}
+
+    <div class="notice">
+      A <strong>Chrome browser window</strong> is opening on your desktop — check your taskbar.
+      It will navigate to the job page and fill in your details automatically.
+      <strong>Nothing is submitted until you click "Confirm &amp; Submit" below.</strong>
+    </div>
+
+    <!-- Status box -->
+    <div class="status-box">
+      <div class="status-row">
+        <span id="status-icon"><span class="spin-ring"></span></span>
+        <span class="status-text status-starting" id="status-text">Opening Chrome browser&hellip;</span>
+      </div>
+
+      <div class="live-log" id="live-log">
+        <div class="log-line">Waiting for browser to start...</div>
+      </div>
+
+      <details class="fields" id="fields-wrap" style="display:none">
+        <summary>Fields filled (<span id="fields-count">0</span>)</summary>
+        <ul id="fields-list"></ul>
+      </details>
+
+      <div id="error-msg"></div>
+    </div>
+
+    <div class="countdown-bar" id="countdown-bar">
+      Review the Chrome window and fill any remaining fields, then confirm below.
+      Session expires in <span id="countdown-timer">10:00</span>.
+    </div>
+
+    <!-- Login-required actions -->
+    <div class="actions" id="login-btns" style="display:none">
+      <button class="btn btn-confirm" id="login-done-btn" onclick="doLoginDone()">
+        &#128275; I&apos;ve logged in &mdash; Continue
+      </button>
+      <button class="btn btn-cancel" id="login-cancel-btn" onclick="doLoginCancel()">
+        Cancel
+      </button>
+    </div>
+
+    <div class="actions" id="action-btns" style="display:none">
+      <button class="btn btn-confirm" id="confirm-btn" onclick="doConfirm()">
+        Confirm &amp; Submit Application
+      </button>
+      <button class="btn btn-cancel" id="cancel-btn" onclick="doCancel()">
+        Cancel
+      </button>
+    </div>
+
+    <div id="done-banner">
+      <strong>Application submitted.</strong>
+      <div class="sub">Saved to your <a href="/saved-jobs" style="color:var(--brand-mid)">applications tracker</a>.</div>
+      <div>
+        <a class="btn btn-back-sm" href="/match-results/{{ cache_key }}" style="margin-right:6px">&larr; Back to Results</a>
+        <a class="btn" style="background:var(--brand);color:white" href="/">Home</a>
+      </div>
+    </div>
+
+    <div id="focus-row">
+      <button class="btn btn-focus" onclick="tryFocusBrowser()">Switch to Chrome Window</button>
+      <span>Can't see Chrome? Check your taskbar or alt-tab.</span>
+    </div>
+
+    <script>
+      const APP_ID    = '{{ app_id }}';
+      const CACHE_KEY = '{{ cache_key }}';
+      const IDX       = {{ idx }};
+      const LS_KEY    = 'resume_sender_app_session';
+
+      const STATUS_ICONS = {
+        starting:              '<span class="spin-ring"></span>',
+        navigating:            '<span class="spin-ring"></span>',
+        filling:               '<span class="spin-ring"></span>',
+        awaiting_login:        '&#128274;',
+        awaiting_confirmation: '&#10003;',
+        submitted:             '&#10003;',
+        cancelled:             '&mdash;',
+        error:                 '&#215;',
+      };
+      const STATUS_TEXT = {
+        starting:              'Opening Chrome browser\u2026',
+        navigating:            'Browser open \u2014 navigating to job page\u2026',
+        filling:               'Filling in your information\u2026',
+        awaiting_login:        'Login required \u2014 please log in in the browser window.',
+        awaiting_confirmation: 'Form filled \u2014 review the Chrome window, then confirm below.',
+        submitted:             'Application submitted.',
+        cancelled:             'Application cancelled.',
+        error:                 'An error occurred.',
+      };
+      const STATUS_CLASS = {
+        starting:              'status-starting',
+        navigating:            'status-navigating',
+        filling:               'status-filling',
+        awaiting_login:        'status-awaiting',
+        awaiting_confirmation: 'status-awaiting',
+        submitted:             'status-submitted',
+        cancelled:             'status-cancelled',
+        error:                 'status-error',
+      };
+
+      const logLines = [];
+      let lastMessage = '';
+      function appendLog(msg) {
+        if (!msg || msg === lastMessage) return;
+        lastMessage = msg;
+        logLines.push(msg);
+        if (logLines.length > 30) logLines.shift();
+        const log = document.getElementById('live-log');
+        log.innerHTML = logLines
+          .map(l => `<div class="log-line">${escHtml(l)}</div>`)
+          .join('');
+        log.scrollTop = log.scrollHeight;
+      }
+
+      function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      }
+
+      let countdownSec = 600;
+      let countdownInterval = null;
+      function startCountdown() {
+        const bar = document.getElementById('countdown-bar');
+        bar.style.display = 'block';
+        countdownInterval = setInterval(() => {
+          countdownSec--;
+          if (countdownSec <= 0) {
+            clearInterval(countdownInterval);
+            document.getElementById('countdown-timer').textContent = '0:00';
+            return;
+          }
+          const m = Math.floor(countdownSec / 60);
+          const s = countdownSec % 60;
+          document.getElementById('countdown-timer').textContent =
+            m + ':' + (s < 10 ? '0' : '') + s;
+        }, 1000);
+      }
+
+      function tryFocusBrowser() {
+        try {
+          const w = window.open('about:blank', '_blank', 'width=1,height=1');
+          if (w) { setTimeout(() => w.close(), 200); }
+        } catch(e) {}
+        window.focus();
+      }
+
+      function saveSession() {
+        try {
+          localStorage.setItem(LS_KEY, JSON.stringify({
+            app_id: APP_ID, cache_key: CACHE_KEY, idx: IDX,
+            saved_at: Date.now()
+          }));
+        } catch(e) {}
+      }
+      function clearSession() {
+        try { localStorage.removeItem(LS_KEY); } catch(e) {}
+      }
+      try {
+        const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+        if (saved && saved.app_id === APP_ID && (Date.now() - saved.saved_at) < 600000) {
+          document.getElementById('recovery-banner').style.display = 'block';
+        }
+      } catch(e) {}
+      saveSession();
+
+      let pollCount  = 0;
+      const POLL_MAX = 150;
+      let confirmed  = false;
+      let terminal   = false;
+
+      function poll() {
+        if (terminal) return;
+        pollCount++;
+        if (pollCount > POLL_MAX) {
+          document.getElementById('status-text').textContent =
+            'Timed out waiting — check the browser window.';
+          appendLog('Status poll timed out. Check the Chrome window manually.');
+          return;
+        }
+
+        fetch('/apply-status/' + APP_ID)
+          .then(r => r.json())
+          .then(data => {
+            const st = data.status || 'not_found';
+
+            const icon = STATUS_ICONS[st] || '&bull;';
+            const text = STATUS_TEXT[st] || st;
+            const cls  = STATUS_CLASS[st] || '';
+            document.getElementById('status-icon').innerHTML = icon;
+            const stEl = document.getElementById('status-text');
+            stEl.className = 'status-text ' + cls;
+            stEl.textContent = text;
+
+            if (data.message) appendLog(data.message);
+
+            if (['navigating','filling','awaiting_confirmation','awaiting_login'].includes(st)) {
+              document.getElementById('focus-row').style.display = 'flex';
+            }
+
+            if (st === 'awaiting_login') {
+              document.getElementById('login-btns').style.display = 'flex';
+              document.getElementById('action-btns').style.display = 'none';
+            } else {
+              document.getElementById('login-btns').style.display = 'none';
+            }
+
+            if (data.filled_fields && data.filled_fields.length) {
+              const wrap = document.getElementById('fields-wrap');
+              const ul   = document.getElementById('fields-list');
+              document.getElementById('fields-count').textContent = data.filled_fields.length;
+              ul.innerHTML = '';
+              data.filled_fields.forEach(f => {
+                const li = document.createElement('li');
+                li.textContent = f;
+                ul.appendChild(li);
+              });
+              wrap.style.display = 'block';
+            }
+
+            if (st === 'awaiting_confirmation') {
+              document.getElementById('action-btns').style.display = 'flex';
+              if (!countdownInterval) startCountdown();
+            }
+
+            if (st === 'error') {
+              const errEl = document.getElementById('error-msg');
+              const msg = data.error || 'Unknown error.';
+              errEl.innerHTML = '<strong>Error:</strong> ' + escHtml(msg) +
+                '<br><a href="/preview/' + CACHE_KEY + '/' + IDX +
+                '" style="color:var(--brand-mid);font-size:0.85rem">&larr; Back to preview to try again</a>';
+              errEl.style.display = 'block';
+              if (data.error) appendLog('ERROR: ' + data.error);
+            }
+
+            if (st === 'not_found') {
+              appendLog('Session not found — the server may have restarted.');
+              const errEl = document.getElementById('error-msg');
+              errEl.innerHTML = 'Session not found. The server may have restarted.' +
+                '<br><a href="/preview/' + CACHE_KEY + '/' + IDX +
+                '" style="color:var(--brand-mid);font-size:0.85rem">&larr; Back to preview to try again</a>';
+              errEl.style.display = 'block';
+            }
+
+            const TERMINAL = ['submitted','cancelled','error','not_found'];
+            if (TERMINAL.includes(st)) {
+              terminal = true;
+              document.getElementById('action-btns').style.display = 'none';
+              if (countdownInterval) clearInterval(countdownInterval);
+              clearSession();
+              if (st === 'submitted') {
+                document.getElementById('done-banner').style.display = 'block';
+                document.getElementById('focus-row').style.display = 'none';
+              }
+              return;
+            }
+
+            setTimeout(poll, 2000);
+          })
+          .catch(() => setTimeout(poll, 3000));
+      }
+
+      function doLoginDone() {
+        document.getElementById('login-done-btn').disabled = true;
+        document.getElementById('login-done-btn').textContent = 'Resuming\u2026';
+        document.getElementById('login-cancel-btn').disabled = true;
+        document.getElementById('login-btns').style.display = 'none';
+        fetch('/login-done/' + APP_ID, { method: 'POST' }).catch(() => {});
+      }
+
+      function doLoginCancel() {
+        document.getElementById('login-cancel-btn').disabled = true;
+        document.getElementById('login-done-btn').disabled = true;
+        fetch('/login-cancel/' + APP_ID, { method: 'POST' }).catch(() => {});
+      }
+
+      function doConfirm() {
+        const btn = document.getElementById('confirm-btn');
+        btn.disabled = true;
+        btn.textContent = 'Submitting\u2026';
+        document.getElementById('cancel-btn').disabled = true;
+        confirmed = true;
+        fetch('/confirm-apply/' + APP_ID, { method: 'POST' })
+          .catch(() => {});
+      }
+
+      function doCancel() {
+        document.getElementById('cancel-btn').disabled = true;
+        document.getElementById('confirm-btn').disabled = true;
+        fetch('/cancel-apply/' + APP_ID, { method: 'POST' })
+          .catch(() => {});
+      }
+
+      setTimeout(poll, 1200);
+    </script>
+  </body>
+</html>

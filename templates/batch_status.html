@@ -1,0 +1,291 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Applying…</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: sans-serif; margin: 0; background: #f7f8fa; color: #222; }
+      .topbar { background: #1a3a6a; color: white; padding: 0.75rem 1.5rem;
+                display: flex; align-items: center; gap: 1rem; }
+      .topbar h1 { margin: 0; font-size: 1.15rem; flex: 1; }
+      .topbar a  { color: #aac8f0; text-decoration: none; font-size: 0.9rem; }
+
+      .container { max-width: 860px; margin: 1.5rem auto; padding: 0 1rem; }
+
+      /* ── Progress summary ── */
+      .progress-bar-wrap { background: #e0e0e0; border-radius: 6px; height: 10px;
+                           margin: 0.5rem 0 1.2rem; overflow: hidden; }
+      .progress-bar-fill { height: 100%; background: #1a7a1a; border-radius: 6px;
+                           transition: width 0.4s; }
+      .progress-meta { font-size: 0.85rem; color: #666; margin-bottom: 1rem; }
+
+      /* ── Current job callout ── */
+      .current-box { background: #fff8e8; border: 2px solid #ffc107; border-radius: 8px;
+                     padding: 1.1rem 1.4rem; margin-bottom: 1.2rem; display: none; }
+      .current-box h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+      .current-sub  { color: #555; font-size: 0.88rem; margin-bottom: 0.6rem; }
+      .fields-list  { font-size: 0.82rem; color: #555; margin: 0.4rem 0 0.8rem;
+                      padding-left: 1.2rem; }
+      .confirm-btns { display: flex; gap: 10px; }
+      .btn-confirm  { padding: 9px 22px; background: #1a7a1a; color: white; border: none;
+                      border-radius: 5px; cursor: pointer; font-size: 0.95rem; font-weight: bold; }
+      .btn-skip     { padding: 9px 16px; background: #c00; color: white; border: none;
+                      border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
+      .status-msg   { font-size: 0.9rem; font-weight: 600; color: #c05c00; }
+
+      /* ── Job rows ── */
+      .job-row { background: white; border: 1px solid #e0e0e0; border-radius: 7px;
+                 padding: 0.75rem 1rem; margin-bottom: 0.55rem;
+                 display: flex; align-items: center; gap: 0.85rem; }
+      .job-row.status-submitted { border-color: #1a7a1a; }
+      .job-row.status-cancelled { opacity: 0.55; }
+      .job-row.status-error     { border-color: #c00; }
+      .job-row.status-active    { border-color: #ffc107; background: #fffdf0; }
+      .jr-info { flex: 1; min-width: 0; }
+      .jr-title { font-size: 0.9rem; font-weight: 600; }
+      .jr-company { font-size: 0.8rem; color: #666; }
+      .jr-url { font-size: 0.75rem; color: #1a5c9a; text-decoration: none; }
+      .jr-url:hover { text-decoration: underline; }
+      .jr-status { font-size: 0.78rem; padding: 3px 10px; border-radius: 10px;
+                   white-space: nowrap; flex-shrink: 0; }
+      .s-pending   { background: #eee;    color: #666; }
+      .s-starting  { background: #e8eeff; color: #1a4a9a; }
+      .s-navigating{ background: #e8eeff; color: #1a4a9a; }
+      .s-filling   { background: #f0e8ff; color: #4a1a8a; }
+      .s-awaiting  { background: #fff3cd; color: #856404; font-weight: bold; }
+      .s-submitted { background: #e8f4e8; color: #1a5c1a; font-weight: bold; }
+      .s-cancelled { background: #eee;    color: #888; }
+      .s-skipped   { background: #eee;    color: #888; }
+      .s-error     { background: #fce8e8; color: #c00; }
+      .jr-error    { font-size: 0.75rem; color: #c00; margin-top: 2px; }
+
+      /* ── Done banner ── */
+      .done-banner { background: #e8f4e8; border: 2px solid #1a7a1a; border-radius: 8px;
+                     padding: 1.1rem 1.4rem; margin-bottom: 1.2rem;
+                     font-size: 1rem; font-weight: 600; color: #1a5c1a; display: none; }
+      .spinner { display: inline-block; animation: spin 1s linear infinite; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>Applying to Jobs{% if mode == 'quick' %} &mdash; &#9889; Quick Apply{% endif %}</h1>
+      <a href="/">← Home</a>
+      <a href="/saved-jobs">My Applications</a>
+      <a href="/site-credentials">Job Board Accounts</a>
+    </div>
+
+    <div class="container">
+      {% if mode == 'quick' %}
+      <div style="background:#eef0ff;border:1px solid #9aaae8;border-radius:7px;
+                  padding:0.7rem 1rem;margin-bottom:1rem;font-size:0.88rem;color:#1a2a6a;">
+        <strong>&#9889; Quick Apply mode</strong> — forms are being filled and submitted automatically in the background.
+        Up to 4 jobs run at once. Check <a href="/saved-jobs" style="color:#1a3a9a">My Applications</a> when complete.
+      </div>
+      {% endif %}
+
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="prog-fill" style="width:0%"></div>
+      </div>
+      <div class="progress-meta" id="prog-meta">Starting…</div>
+
+      <!-- Done banner -->
+      <div class="done-banner" id="done-banner">
+        All done. Check <a href="/saved-jobs">My Applications</a> for your tracker.
+      </div>
+
+      <!-- Current job awaiting confirmation (review mode only) -->
+      <div class="current-box" id="current-box">
+        <h3 id="cur-title">Waiting…</h3>
+        <div class="current-sub" id="cur-sub"></div>
+        <div class="status-msg" id="cur-status-msg"></div>
+        <ul class="fields-list" id="cur-fields"></ul>
+        <div class="confirm-btns" id="login-btns" style="display:none">
+          <button class="btn-confirm" onclick="loginDone()">&#128275; I&apos;ve logged in &mdash; Continue</button>
+          <button class="btn-skip"    onclick="skipJob()">Skip this job</button>
+        </div>
+        <div class="confirm-btns" id="cur-btns" style="display:none">
+          <button class="btn-confirm" onclick="confirmJob()">Confirm &amp; Submit</button>
+          <button class="btn-skip"    onclick="skipJob()">Skip this job</button>
+        </div>
+      </div>
+
+      <!-- Job list -->
+      <div id="job-list">
+        {% for job in jobs %}
+          <div class="job-row" id="row-{{ loop.index0 }}">
+            <div class="jr-info">
+              <div class="jr-title">{{ job.get('title','') }}</div>
+              <div class="jr-company">{{ job.get('company_name') or job.get('company','') }}</div>
+              {% if job.get('url') %}
+                <a class="jr-url" href="{{ job.get('url') }}" target="_blank" rel="noopener">
+                  {{ job.get('url')[:70] }}{% if job.get('url','')|length > 70 %}…{% endif %} ↗
+                </a>
+              {% endif %}
+              <div class="jr-error" id="err-{{ loop.index0 }}"></div>
+            </div>
+            <span class="jr-status s-pending" id="status-{{ loop.index0 }}">Pending</span>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <script>
+      const BATCH_ID   = "{{ batch_id }}";
+      const TOTAL      = {{ jobs|length }};
+      const QUICK_MODE = "{{ mode }}" === 'quick';
+      let   currentIdx = -1;
+
+      const STATUS_LABELS = {
+        pending:               'Pending',
+        starting:              'Starting…',
+        navigating:            'Navigating…',
+        filling:               'Filling form…',
+        awaiting_login:        'Login Required',
+        awaiting_confirmation: 'Review & Confirm',
+        submitted:             'Submitted',
+        cancelled:             'Skipped',
+        skipped:               'Skipped',
+        error:                 'Error',
+      };
+      const STATUS_CSS = {
+        pending:               's-pending',
+        starting:              's-starting',
+        navigating:            's-navigating',
+        filling:               's-filling',
+        awaiting_login:        's-awaiting',
+        awaiting_confirmation: 's-awaiting',
+        submitted:             's-submitted',
+        cancelled:             's-cancelled',
+        skipped:               's-skipped',
+        error:                 's-error',
+      };
+
+      function loginDone() {
+        if (currentIdx < 0) return;
+        document.getElementById('login-btns').style.display = 'none';
+        fetch(`/batch-login-done/${BATCH_ID}/${currentIdx}`, { method: 'POST' });
+      }
+
+      function confirmJob() {
+        if (currentIdx < 0) return;
+        document.getElementById('cur-btns').style.display = 'none';
+        fetch(`/batch-confirm/${BATCH_ID}/${currentIdx}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'action=confirm'
+        });
+      }
+
+      function skipJob() {
+        if (currentIdx < 0) return;
+        document.getElementById('login-btns').style.display = 'none';
+        document.getElementById('cur-btns').style.display = 'none';
+        fetch(`/batch-confirm/${BATCH_ID}/${currentIdx}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: 'action=cancel'
+        });
+      }
+
+      function poll() {
+        fetch(`/batch-status-json/${BATCH_ID}`)
+          .then(r => r.json())
+          .then(data => {
+            const done = data.done;
+            const jobs = data.jobs || [];
+            currentIdx = data.current;
+
+            // Update progress
+            const finished = jobs.filter(j =>
+              ['submitted','cancelled','skipped','error'].includes(j.status)).length;
+            const active = jobs.filter(j =>
+              ['starting','navigating','filling','awaiting_confirmation','awaiting_login'].includes(j.status)).length;
+            const submitted = jobs.filter(j => j.status === 'submitted').length;
+            const pct = TOTAL > 0 ? Math.round((finished / TOTAL) * 100) : 0;
+            document.getElementById('prog-fill').style.width = pct + '%';
+            if (done) {
+              document.getElementById('prog-meta').textContent =
+                `Done — ${submitted} submitted, ${finished - submitted} skipped/errored out of ${TOTAL}.`;
+            } else if (QUICK_MODE) {
+              document.getElementById('prog-meta').textContent =
+                `${active} running · ${submitted} submitted · ${finished} of ${TOTAL} complete`;
+            } else {
+              document.getElementById('prog-meta').textContent =
+                `Processing… ${finished} of ${TOTAL} complete.`;
+            }
+
+            // Update each job row
+            jobs.forEach(job => {
+              const row    = document.getElementById(`row-${job.idx}`);
+              const badge  = document.getElementById(`status-${job.idx}`);
+              const errEl  = document.getElementById(`err-${job.idx}`);
+              if (!row || !badge) return;
+
+              const css = STATUS_CSS[job.status] || 's-pending';
+              badge.className = `jr-status ${css}`;
+              badge.textContent = STATUS_LABELS[job.status] || job.status;
+
+              // Highlight active row
+              row.className = 'job-row' +
+                (job.idx === currentIdx ? ' status-active'    : '') +
+                (job.status === 'submitted' ? ' status-submitted' : '') +
+                (job.status === 'error'     ? ' status-error'     : '') +
+                (job.status === 'cancelled' ? ' status-cancelled'  : '');
+
+              if (job.error) errEl.textContent = job.error;
+            });
+
+            // Update current-box (only in review mode)
+            const curBox = document.getElementById('current-box');
+            if (!QUICK_MODE && currentIdx >= 0 && currentIdx < jobs.length) {
+              const cur = jobs[currentIdx];
+              curBox.style.display = 'block';
+              document.getElementById('cur-title').textContent =
+                cur.title + ' @ ' + cur.company;
+              document.getElementById('cur-sub').textContent =
+                cur.url ? `Posting: ${cur.url}` : '';
+
+              const statusMsg = {
+                starting:              'Opening browser…',
+                navigating:            'Navigating to job page…',
+                filling:               'Filling in your information…',
+                awaiting_login:        'Login required — please log in in the browser, then click "I\'ve logged in".',
+                awaiting_confirmation: 'Form filled — review the browser window, then confirm below.',
+              };
+              const liveMsg = cur.message || statusMsg[cur.status] || '';
+              document.getElementById('cur-status-msg').textContent = liveMsg;
+
+              // Fill fields list
+              const ul = document.getElementById('cur-fields');
+              ul.innerHTML = '';
+              (cur.filled_fields || []).forEach(f => {
+                const li = document.createElement('li');
+                li.textContent = f;
+                ul.appendChild(li);
+              });
+
+              const loginBtns = document.getElementById('login-btns');
+              const btns = document.getElementById('cur-btns');
+              loginBtns.style.display = cur.status === 'awaiting_login' ? 'flex' : 'none';
+              btns.style.display = cur.status === 'awaiting_confirmation' ? 'flex' : 'none';
+            } else {
+              curBox.style.display = 'none';
+            }
+
+            // Done?
+            if (done) {
+              document.getElementById('done-banner').style.display = 'block';
+              curBox.style.display = 'none';
+            } else {
+              setTimeout(poll, 2000);
+            }
+          })
+          .catch(() => setTimeout(poll, 3000));
+      }
+
+      setTimeout(poll, 1500);
+    </script>
+  </body>
+</html>

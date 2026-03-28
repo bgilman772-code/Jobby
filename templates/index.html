@@ -1,0 +1,397 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Jobby</title>
+    <style>
+      :root {
+        --brand: #1e3a6e;
+        --brand-mid: #2756a8;
+        --brand-light: #eef3fb;
+        --green: #1a7a2a;
+        --green-light: #e8f5eb;
+        --text: #1a1a1a;
+        --text-2: #555;
+        --text-3: #888;
+        --border: #dde1e8;
+        --bg: #f4f6f9;
+        --card: #ffffff;
+        --shadow: 0 1px 4px rgba(0,0,0,0.07);
+        --radius: 8px;
+      }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+             margin: 0; background: var(--bg); color: var(--text); font-size: 0.93rem; }
+
+      /* ── Topbar ── */
+      .topbar { background: var(--brand); color: white; padding: 0 1.5rem;
+                height: 52px; display: flex; align-items: center; gap: 1.5rem; }
+      .topbar h1 { margin: 0; font-size: 1.05rem; font-weight: 600; flex: 1; letter-spacing: -0.01em; }
+      .topbar a { color: rgba(255,255,255,0.72); text-decoration: none; font-size: 0.85rem;
+                  font-weight: 500; transition: color 0.15s; }
+      .topbar a:hover { color: white; }
+
+      /* ── Step progress bar ── */
+      .steps-bar { background: white; border-bottom: 1px solid var(--border);
+                   padding: 0; overflow: hidden; }
+      .steps-inner { max-width: 1080px; margin: 0 auto; padding: 0 1rem;
+                     display: flex; }
+      .step { flex: 1; display: flex; align-items: center; gap: 10px;
+              padding: 0.9rem 1rem; position: relative; border-right: 1px solid var(--border); }
+      .step:last-child { border-right: none; }
+      .step-num { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--border);
+                  display: flex; align-items: center; justify-content: center;
+                  font-size: 0.75rem; font-weight: 700; color: var(--text-3);
+                  flex-shrink: 0; background: white; }
+      .step.done .step-num { background: var(--green); border-color: var(--green); color: white; }
+      .step.active .step-num { background: var(--brand); border-color: var(--brand); color: white; }
+      .step-label { font-size: 0.82rem; font-weight: 600; color: var(--text-3); }
+      .step.done .step-label  { color: var(--green); }
+      .step.active .step-label { color: var(--brand); }
+      .step-sub { font-size: 0.73rem; color: var(--text-3); margin-top: 1px; }
+      .step.done .step-sub { color: #4a9a5a; }
+      .step.active .step-sub { color: var(--brand-mid); }
+
+      /* ── Layout ── */
+      .layout { display: flex; max-width: 1080px; margin: 1.8rem auto; gap: 1.8rem; padding: 0 1rem; }
+      .col-main { flex: 1; min-width: 0; }
+      .col-side { width: 300px; flex-shrink: 0; }
+
+      /* ── Cards ── */
+      .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+              box-shadow: var(--shadow); padding: 1.4rem 1.6rem; margin-bottom: 1.2rem; }
+
+      /* Section heading with step number */
+      .section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.1rem;
+                      padding-bottom: 0.8rem; border-bottom: 1px solid var(--border); }
+      .section-num { width: 28px; height: 28px; border-radius: 50%; background: var(--brand);
+                     color: white; display: flex; align-items: center; justify-content: center;
+                     font-size: 0.78rem; font-weight: 700; flex-shrink: 0; }
+      .section-head h2 { margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--text); }
+      .section-head p  { margin: 0; font-size: 0.78rem; color: var(--text-3); margin-top: 1px; }
+
+      /* ── Upload section ── */
+      .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+      .upload-slot { border: 2px dashed var(--border); border-radius: var(--radius);
+                     padding: 1rem 1.1rem; background: var(--bg); transition: border-color 0.15s; }
+      .upload-slot:hover { border-color: var(--brand-mid); }
+      .upload-slot.has-file { border-color: #4a9a5a; border-style: solid;
+                               background: var(--green-light); }
+      .upload-slot label { display: block; font-size: 0.8rem; font-weight: 600;
+                           color: var(--text-2); margin-bottom: 0.35rem; cursor: pointer; }
+      .upload-slot .upload-hint { font-size: 0.73rem; color: var(--text-3); margin-bottom: 0.5rem; line-height: 1.4; }
+      .upload-slot input[type=file] { font-size: 0.8rem; color: var(--text-2); }
+      .file-tag { display: inline-flex; align-items: center; gap: 4px; background: var(--green-light);
+                  color: #1a5c20; font-size: 0.74rem; padding: 2px 9px; border-radius: 10px;
+                  margin-bottom: 0.4rem; font-weight: 500; }
+
+      /* ── Profile fields ── */
+      .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+      .field-grid .full { grid-column: 1 / -1; }
+      .field { margin-bottom: 0.75rem; }
+      .field label { display: block; font-size: 0.79rem; font-weight: 600; color: var(--text-2);
+                     margin-bottom: 0.2rem; }
+      .field .hint { font-size: 0.72rem; color: var(--text-3); margin-top: 2px; line-height: 1.4; }
+      input[type=text], input[type=email], input[type=tel], textarea {
+        width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px;
+        font-size: 0.88rem; font-family: inherit; color: var(--text); background: white;
+        transition: border-color 0.15s; }
+      input:focus, textarea:focus { outline: none; border-color: var(--brand-mid); }
+      textarea { resize: vertical; }
+
+      /* optional badge */
+      .opt { font-size: 0.68rem; font-weight: 400; color: var(--text-3);
+             background: var(--bg); border: 1px solid var(--border);
+             border-radius: 4px; padding: 0px 5px; margin-left: 5px; vertical-align: middle; }
+
+      /* ── Buttons ── */
+      .btn { display: inline-block; padding: 8px 20px; border-radius: 5px; border: none;
+             cursor: pointer; font-size: 0.87rem; font-weight: 500; font-family: inherit;
+             text-decoration: none; transition: opacity 0.15s; }
+      .btn:hover { opacity: 0.87; }
+      .btn-primary { background: var(--brand); color: white; }
+      .btn-ghost   { background: white; color: var(--text-2); border: 1px solid var(--border); }
+      .btn-ghost:hover { background: var(--bg); opacity: 1; }
+      .btn-purple  { background: #6d28d9; color: white; }
+
+      /* ── Find Jobs CTA ── */
+      .find-jobs-card { background: var(--brand); border-radius: var(--radius);
+                        padding: 1.5rem 1.6rem; color: white; margin-bottom: 1.2rem; }
+      .find-jobs-card .step-label-cta { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+                                         letter-spacing: 0.07em; color: rgba(255,255,255,0.6);
+                                         margin-bottom: 0.4rem; }
+      .find-jobs-card h2 { margin: 0 0 0.5rem; font-size: 1.1rem; color: white; }
+      .find-jobs-card p { margin: 0 0 1rem; font-size: 0.84rem; color: rgba(255,255,255,0.75);
+                          line-height: 1.5; }
+      .btn-find { display: block; text-align: center; background: var(--green); color: white;
+                  padding: 13px 24px; border-radius: 6px; font-size: 1rem; font-weight: 700;
+                  text-decoration: none; transition: background 0.15s; }
+      .btn-find:hover { background: #155e22; }
+      .btn-find.disabled { background: rgba(255,255,255,0.2); color: rgba(255,255,255,0.5);
+                           cursor: default; pointer-events: none; }
+      .requires-resume { display: flex; align-items: center; gap: 6px; font-size: 0.78rem;
+                         color: rgba(255,255,255,0.6); margin-top: 0.6rem; }
+      .req-dot { width: 8px; height: 8px; border-radius: 50%; background: #c00; flex-shrink: 0; }
+      .req-dot.done { background: #4aaa5a; }
+
+      /* ── Tracker card ── */
+      .card-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+                    letter-spacing: 0.06em; color: var(--text-3); margin: 0 0 0.9rem;
+                    padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); }
+      .stat-row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .stat { background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+              padding: 6px 12px; font-size: 0.79rem; text-align: center; }
+      .stat strong { display: block; font-size: 1.05rem; font-weight: 700; color: var(--brand); }
+
+      /* ── Manual search ── */
+      .manual-card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border);
+                     box-shadow: var(--shadow); padding: 1rem 1.2rem; margin-bottom: 1.2rem; }
+      .manual-card .label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+                             letter-spacing: 0.06em; color: var(--text-3); margin-bottom: 0.6rem; }
+      .search-row { display: flex; gap: 7px; }
+      .search-row input { flex: 1; margin: 0; }
+
+      /* ── Flash ── */
+      .flash { background: #fffbea; border: 1px solid #f0c040; border-radius: var(--radius);
+               padding: 0.65rem 1rem; margin-bottom: 1rem; font-size: 0.88rem; color: #6a4e00; }
+
+      /* ── Save bar ── */
+      .save-bar { display: flex; align-items: center; gap: 10px; padding-top: 0.5rem;
+                  border-top: 1px solid var(--border); margin-top: 0.5rem; flex-wrap: wrap; }
+      .save-bar p { margin: 0; font-size: 0.73rem; color: var(--text-3); flex: 1; line-height: 1.4; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>Jobby</h1>
+      <a href="/saved-jobs">My Applications{% if app_counts %} ({{ app_counts.values()|sum }}){% endif %}</a>
+      <a href="/jobs_db">Scraped Jobs</a>
+      <a href="/site-credentials">Job Board Accounts</a>
+      {% if username %}<span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">{{ username }}</span>{% endif %}
+      <a href="/logout" style="color:#f99;font-size:0.82rem;">Sign Out</a>
+    </div>
+
+    <!-- Step progress indicator -->
+    <div class="steps-bar">
+      <div class="steps-inner">
+        <div class="step {% if resume %}done{% else %}active{% endif %}">
+          <div class="step-num">{% if resume %}&#10003;{% else %}1{% endif %}</div>
+          <div>
+            <div class="step-label">Upload Resume</div>
+            <div class="step-sub">{% if resume %}{{ resume }}{% else %}PDF or DOCX required{% endif %}</div>
+          </div>
+        </div>
+        <div class="step {% if profile.get('name') and profile.get('email') %}done{% elif resume %}active{% endif %}">
+          <div class="step-num">{% if profile.get('name') and profile.get('email') %}&#10003;{% else %}2{% endif %}</div>
+          <div>
+            <div class="step-label">Complete Profile</div>
+            <div class="step-sub">Name, email, contact info</div>
+          </div>
+        </div>
+        <div class="step {% if resume and profile.get('name') and profile.get('email') %}active{% endif %}">
+          <div class="step-num">3</div>
+          <div>
+            <div class="step-label">Find Matching Jobs</div>
+            <div class="step-sub">AI-ranked results in ~60 sec</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="col-main">
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form action="/upload" method="post" enctype="multipart/form-data">
+
+          <!-- Step 1: Upload files -->
+          <div class="card">
+            <div class="section-head">
+              <div class="section-num">1</div>
+              <div>
+                <h2>Upload your files</h2>
+                <p>Your resume is required. The cover letter template is optional but improves AI output.</p>
+              </div>
+            </div>
+            <div class="upload-grid">
+              <div class="upload-slot {% if resume %}has-file{% endif %}">
+                <label for="resume-input">Resume <span style="color:#c00">*</span></label>
+                <div class="upload-hint">PDF or DOCX. Used for AI matching and auto-fill.</div>
+                {% if resume %}<div class="file-tag">&#10003; {{ resume }}</div>{% endif %}
+                <input id="resume-input" type="file" name="resume" accept=".pdf,.docx"/>
+              </div>
+              <div class="upload-slot {% if template %}has-file{% endif %}">
+                <label for="cover-input">Cover Letter Template <span class="opt">optional</span></label>
+                <div class="upload-hint">A base letter in .txt or .docx. AI will tailor it per job.</div>
+                {% if template %}<div class="file-tag">&#10003; {{ template }}</div>{% endif %}
+                <input id="cover-input" type="file" name="cover_template" accept=".txt,.docx,.pdf"/>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Profile -->
+          <div class="card">
+            <div class="section-head">
+              <div class="section-num">2</div>
+              <div>
+                <h2>Your profile</h2>
+                <p>Used to auto-fill job applications. Upload a resume first and click "Re-parse" to fill automatically.</p>
+              </div>
+            </div>
+
+            <div class="field-grid">
+              <div class="field">
+                <label for="f-name">Full Name</label>
+                <input id="f-name" type="text" name="name" value="{{ profile.get('name','') }}" placeholder="Jane Smith"/>
+              </div>
+              <div class="field">
+                <label for="f-email">Email</label>
+                <input id="f-email" type="email" name="email" value="{{ profile.get('email','') }}" placeholder="jane@example.com"/>
+              </div>
+              <div class="field">
+                <label for="f-phone">Phone</label>
+                <input id="f-phone" type="tel" name="phone" value="{{ profile.get('phone','') }}" placeholder="(555) 123-4567"/>
+              </div>
+              <div class="field">
+                <label for="f-city">City <span class="opt">for location filter</span></label>
+                <input id="f-city" type="text" name="city" value="{{ profile.get('city','') }}" placeholder="e.g. Arlington, VA"/>
+              </div>
+              <div class="field">
+                <label for="f-linkedin">LinkedIn URL <span class="opt">optional</span></label>
+                <input id="f-linkedin" type="text" name="linkedin" value="{{ profile.get('linkedin','') }}" placeholder="https://linkedin.com/in/..."/>
+              </div>
+              <div class="field">
+                <label for="f-website">Website / Portfolio <span class="opt">optional</span></label>
+                <input id="f-website" type="text" name="website" value="{{ profile.get('website','') }}" placeholder="https://yoursite.com"/>
+              </div>
+              <div class="field full">
+                <label for="f-intro">One-line intro <span class="opt">shown on applications</span></label>
+                <input id="f-intro" type="text" name="intro" value="{{ profile.get('intro','') }}"
+                       placeholder="e.g. Senior data analyst with 7 years in political tech and civic data"/>
+              </div>
+              <div class="field full">
+                <label for="f-skills">Key skills <span class="opt">brief summary for auto-fill</span></label>
+                <textarea id="f-skills" name="skills" rows="2"
+                  placeholder="e.g. Python, SQL, Tableau, dbt, campaign analytics, electoral data">{{ profile.get('skills','') }}</textarea>
+              </div>
+              <div class="field full">
+                <label for="f-ideal">Ideal Position <span class="opt">used to generate extra search queries</span></label>
+                <textarea id="f-ideal" name="ideal_position" rows="3"
+                  placeholder="Describe what you're looking for — role type, industry, company size, location preference. The more specific, the better the AI search queries.">{{ profile.get('ideal_position','') }}</textarea>
+                <div class="hint">Example: "Senior data analyst at a mission-driven nonprofit or gov-tech org. Prefer remote or DC-area. Love Python, SQL, and electoral/civic data."</div>
+              </div>
+            </div>
+
+            <div class="save-bar">
+              <button class="btn btn-primary" type="submit">Save Profile &amp; Files</button>
+              {% if resume %}
+                <p>Profile saved? Next, <strong>re-parse it from your resume</strong> to auto-fill all fields from the uploaded file.</p>
+              {% else %}
+                <p>Fill in your details above, then upload a resume and save.</p>
+              {% endif %}
+            </div>
+          </div>
+        </form>
+
+        {% if resume %}
+          <div class="card" style="border-color:#c8b4f0;background:#faf7ff">
+            <div class="section-head" style="border-color:#e0d0f8">
+              <div class="section-num" style="background:#6d28d9">&#9889;</div>
+              <div>
+                <h2 style="color:#4a1a8a">Auto-fill profile from resume</h2>
+                <p>Let AI read your uploaded resume and overwrite the profile fields above automatically.</p>
+              </div>
+            </div>
+            <form action="/parse-resume" method="post">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <button class="btn btn-purple" type="button"
+                        onclick="if(confirm('This will overwrite all profile fields with AI-extracted data from your resume. Continue?')) this.form.submit()">
+                  Re-parse Profile from Resume
+                </button>
+                <span style="font-size:0.78rem;color:#6a4a9a;line-height:1.4">
+                  Reads <strong>{{ resume }}</strong> and fills in name, email, skills, intro, and more.
+                </span>
+              </div>
+            </form>
+          </div>
+        {% endif %}
+
+        <div class="manual-card">
+          <div class="label">Manual Job Search</div>
+          <div class="search-row">
+            <form action="/search" method="get" style="display:contents">
+              <input type="text" name="q" placeholder="Search a job title or keyword, e.g. senior data engineer"/>
+              <button class="btn btn-ghost" type="submit">Search</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Right: Find Jobs CTA + stats ── -->
+      <div class="col-side">
+
+        <div class="find-jobs-card">
+          <div class="step-label-cta">Step 3 &mdash; when ready</div>
+          <h2>Find Matching Jobs</h2>
+          <p>AI searches Indeed, Dice, Greenhouse, Lever, Workday, Ashby and 400+ more sources, then ranks results by skills fit, salary, and location. Takes about 60–90 seconds.</p>
+
+          {% if resume %}
+            <a href="/find-matches" class="btn-find">Find Matching Jobs &rarr;</a>
+            <div class="requires-resume" style="margin-top:0.75rem">
+              <div class="req-dot done"></div>
+              Resume uploaded &mdash; you're ready to search
+            </div>
+          {% else %}
+            <a href="#" class="btn-find disabled">Find Matching Jobs &rarr;</a>
+            <div class="requires-resume">
+              <div class="req-dot"></div>
+              Upload a resume above first (Step 1)
+            </div>
+          {% endif %}
+
+          <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.15)">
+            <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;
+                        color:rgba(255,255,255,0.5);margin-bottom:0.4rem">Filters always applied</div>
+            <div style="font-size:0.79rem;color:rgba(255,255,255,0.65);line-height:1.7">
+              Salary $100K+<br/>
+              Remote, DC metro, Miami, or Austin<br/>
+              Company HQ in North America or Europe
+            </div>
+          </div>
+        </div>
+
+        {% if app_counts %}
+        <div class="card">
+          <div class="card-title">Application Tracker</div>
+          <div class="stat-row">
+            {% for status, count in app_counts.items() %}
+              <div class="stat">
+                <strong>{{ count }}</strong>
+                {{ status.title() }}
+              </div>
+            {% endfor %}
+          </div>
+          <a href="/saved-jobs" style="display:block;margin-top:0.9rem;font-size:0.84rem;color:var(--brand-mid)">View all applications &rarr;</a>
+        </div>
+        {% endif %}
+
+        <div class="card" style="border-color:var(--border)">
+          <div class="card-title">How it works</div>
+          <ol style="margin:0;padding-left:1.2rem;font-size:0.83rem;color:var(--text-2);line-height:2">
+            <li>Upload resume &amp; fill profile</li>
+            <li>Review skills &amp; search settings</li>
+            <li>AI searches 400+ sources (Indeed, Dice, ATS boards &amp; more)</li>
+            <li>Browse ranked matches</li>
+            <li>Click <strong>Review &amp; Apply</strong> to edit cover letter</li>
+            <li>Use <strong>Auto-Fill</strong> to open &amp; fill the form</li>
+            <li>Review in browser, then confirm</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,80 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Sign In — Jobby</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        background: #f0f2f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        color: #222;
+      }
+      .card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+        padding: 2.5rem 2.5rem 2rem;
+        width: 100%;
+        max-width: 400px;
+      }
+      .logo { text-align: center; margin-bottom: 1.8rem; }
+      .logo h1 { margin: 0; font-size: 1.4rem; color: #1a3a6a; }
+      .logo p  { margin: 0.3rem 0 0; font-size: 0.85rem; color: #666; }
+      label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.3rem; color: #444; }
+      input[type="text"], input[type="password"] {
+        width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #d0d0d0;
+        border-radius: 6px; font-size: 0.95rem; margin-bottom: 1rem;
+        transition: border-color 0.2s;
+      }
+      input:focus { outline: none; border-color: #1a5c9a; }
+      .btn {
+        width: 100%; padding: 0.75rem; background: #1a3a6a; color: white;
+        border: none; border-radius: 6px; font-size: 1rem; font-weight: 600;
+        cursor: pointer; transition: background 0.2s;
+      }
+      .btn:hover { background: #1a5c9a; }
+      .error {
+        background: #fce8e8; border: 1px solid #f5c6c6; color: #c00;
+        padding: 0.6rem 0.9rem; border-radius: 6px; font-size: 0.85rem;
+        margin-bottom: 1rem;
+      }
+      .footer { text-align: center; margin-top: 1.2rem; font-size: 0.85rem; color: #666; }
+      .footer a { color: #1a5c9a; text-decoration: none; }
+      .footer a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo">
+        <h1>Jobby</h1>
+        <p>Sign in to your account</p>
+      </div>
+
+      {% if error %}
+        <div class="error">{{ error }}</div>
+      {% endif %}
+
+      <form method="POST" action="/login">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" autocomplete="username"
+               placeholder="your username" required autofocus>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password"
+               autocomplete="current-password" placeholder="••••••••" required>
+
+        <button type="submit" class="btn">Sign In</button>
+      </form>
+
+      <div class="footer">
+        Don't have an account? <a href="/register">Create one</a>
+      </div>
+    </div>
+  </body>
+</html>

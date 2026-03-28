@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python.exe -c \"import app; print\\(''OK''\\)\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr :5000)",
+      "WebSearch",
+      "WebFetch(domain:developers.ashbyhq.com)",
+      "WebFetch(domain:developers.smartrecruiters.com)",
+      "WebFetch(domain:www.suredividend.com)",
+      "WebFetch(domain:disfold.com)",
+      "WebFetch(domain:etfdb.com)",
+      "WebFetch(domain:stockanalysis.com)",
+      "Bash(python -c \"import job_ranker; import cover_letter_generator; print\\(''imports OK''\\)\")",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''search_queries:'''', d.get\\(''''search_queries''''\\)\\); print\\(''''skills:'''', len\\(d.get\\(''''skills'''',[]\\)\\), ''''items''''\\)\")",
+      "Bash(tasklist)",
+      "Bash(cmd /c \"taskkill /PID 28156 /F\")",
+      "Bash(echo \"exit: $?\")",
+      "Bash(cmd /c taskkill /PID 28156 /F)",
+      "Bash(cmd /c \"taskkill /PID 28156 /F && echo KILLED || echo FAILED\")",
+      "Bash(kill -9 28156)",
+      "Bash(powershell -Command \"Stop-Process -Id 28156 -Force\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} %{redirect_url}\" http://localhost:5000/find-matches)",
+      "Bash(powershell -Command \"Start-Process -FilePath ''c:\\\\Users\\\\bgilman\\\\Resume-Sender\\\\.venv\\\\Scripts\\\\python.exe'' -ArgumentList ''app.py'' -WorkingDirectory ''c:\\\\Users\\\\bgilman\\\\Resume-Sender'' -WindowStyle Normal\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} -> %{redirect_url}\" http://localhost:5000/find-matches)",
+      "Bash(cmd /c \"for /f \"\"tokens=5\"\" %a in \\(''''netstat -aon ^| findstr 5000''''\\) do @echo PID: %a\")",
+      "Bash(python -c \"import socket; s=socket.socket\\(\\); s.connect\\(\\(''localhost'',5000\\)\\); s.close\\(\\); print\\(''connected''\\)\")",
+      "Bash(curl -s --max-time 2 \"http://localhost:5000/inbox-status\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File \"c:\\\\Users\\\\bgilman\\\\Resume-Sender\\\\restart.ps1\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/smtp-config)",
+      "Bash(curl -s \"http://localhost:5000/inbox-status\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5000/generate-email -X POST)",
+      "Bash(.venv/Scripts/python -c \":*)",
+      "Bash(timeout 8 .venv/Scripts/python app.py)"
+    ]
+  }
+}

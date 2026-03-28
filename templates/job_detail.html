@@ -1,0 +1,354 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>{{ job.get('title','Job') }} — {{ job.get('company_name') or job.get('company','') }}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: sans-serif; margin: 0; background: #f7f8fa; color: #222; }
+      .topbar { background: #1a3a6a; color: white; padding: 0.75rem 1.5rem;
+                display: flex; align-items: center; gap: 1rem; }
+      .topbar h1 { margin: 0; font-size: 1.1rem; flex: 1; white-space: nowrap;
+                   overflow: hidden; text-overflow: ellipsis; }
+      .topbar a { color: #aac8f0; text-decoration: none; font-size: 0.9rem; white-space: nowrap; }
+
+      .layout { display: flex; max-width: 1160px; margin: 1.5rem auto; gap: 1.5rem; padding: 0 1rem; }
+
+      /* ── Left: main content ── */
+      .main { flex: 1; min-width: 0; }
+
+      .job-header { background: white; border: 1px solid #e0e0e0; border-radius: 8px;
+                    padding: 1.3rem 1.5rem; margin-bottom: 1rem; }
+      .job-title { font-size: 1.35rem; font-weight: bold; margin: 0 0 0.25rem; line-height: 1.3; }
+      .job-company { font-size: 1rem; color: #444; margin-bottom: 0.6rem; }
+      .job-url { font-size: 0.82rem; color: #1a5c9a; text-decoration: none; word-break: break-all; }
+      .job-url:hover { text-decoration: underline; }
+
+      .badges { display: flex; flex-wrap: wrap; gap: 5px; margin: 0.6rem 0; }
+      .badge { font-size: 0.73rem; padding: 3px 10px; border-radius: 12px; }
+      .b-strong { background: #e8f4e8; color: #1a5c1a; font-weight: 700; }
+      .b-qual   { background: #deeeff; color: #1a4a9a; font-weight: 600; }
+      .b-reach  { background: #f0f0f0; color: #888; }
+      .b-remote { background: #deeeff; color: #1a4a8a; }
+      .b-dc     { background: #e8f0ff; color: #2a4a9a; }
+      .b-pay    { background: #e8f4e8; color: #1a5c1a; }
+      .b-pay-est { background: #fef9e7; color: #7d6608; border: 1px dashed #c9a227; }
+      .b-nopay  { background: #fff3cd; color: #856404; }
+      .b-cat    { background: #f0e8ff; color: #4a1a8a; }
+      .b-pol    { background: #fff0e0; color: #8a4a00; font-weight: 600; }
+      .b-source { background: #eee; color: #666; }
+
+      /* Score strip */
+      .score-strip { display: flex; gap: 1rem; align-items: center; margin-top: 0.9rem;
+                     padding-top: 0.9rem; border-top: 1px solid #eee; flex-wrap: wrap; }
+      .score-big { text-align: center; }
+      .score-num { font-size: 2rem; font-weight: bold; line-height: 1; }
+      .score-label { font-size: 0.68rem; color: #888; }
+      .score-high { color: #1a7a1a; }
+      .score-mid  { color: #b36a00; }
+      .score-low  { color: #999; }
+      .score-breakdown { display: flex; gap: 8px; flex-wrap: wrap; font-size: 0.78rem; color: #666; }
+      .score-breakdown span { background: #f0f0f0; border-radius: 4px; padding: 2px 8px; }
+      .score-breakdown .s-pol { background: #fff0e0; color: #8a4a00; }
+
+      /* Match reason */
+      .match-reason { background: #f9f6ff; border-left: 3px solid #7c3aed; border-radius: 0 6px 6px 0;
+                      padding: 0.7rem 1rem; font-size: 0.88rem; font-style: italic;
+                      color: #444; margin-bottom: 1rem; }
+
+      /* Description */
+      .desc-box { background: white; border: 1px solid #e0e0e0; border-radius: 8px;
+                  padding: 1.2rem 1.5rem; margin-bottom: 1rem; }
+      .desc-box h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+                     color: #888; margin: 0 0 0.8rem; }
+      .desc-content { font-size: 0.9rem; line-height: 1.7; color: #333; }
+      .desc-content p  { margin: 0 0 0.75rem; }
+      .desc-content ul, .desc-content ol { padding-left: 1.4rem; margin: 0 0 0.75rem; }
+      .desc-content li { margin-bottom: 0.3rem; }
+      .desc-content h1, .desc-content h2, .desc-content h3, .desc-content h4
+                       { font-size: 0.95rem; font-weight: 700; margin: 1rem 0 0.4rem; color: #1a3a6a; }
+      .desc-content strong, .desc-content b { font-weight: 600; }
+      .desc-content a  { color: #1a5c9a; }
+
+      /* ── Right: sidebar ── */
+      .sidebar { width: 260px; flex-shrink: 0; }
+      .side-card { background: white; border: 1px solid #e0e0e0; border-radius: 8px;
+                   padding: 1rem 1.1rem; margin-bottom: 1rem; }
+      .side-card h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
+                      color: #888; margin: 0 0 0.7rem; }
+      .action-btn { display: block; width: 100%; padding: 9px 14px; border-radius: 5px;
+                    border: none; cursor: pointer; font-size: 0.9rem; text-align: center;
+                    text-decoration: none; margin-bottom: 0.5rem; font-weight: 600; }
+      .ab-primary  { background: #1a5c9a; color: white; }
+      .ab-primary:hover { background: #154d82; }
+      .ab-green    { background: #1a7a1a; color: white; }
+      .ab-green:hover { background: #156015; }
+      .ab-purple   { background: #7c3aed; color: white; }
+      .ab-purple:hover { background: #6a2fd4; }
+      .ab-tips     { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+      .ab-tips:hover { background: #ffeeba; }
+      .ab-outline  { background: white; color: #444; border: 1px solid #ccc; }
+      .ab-outline:hover { background: #f5f5f5; }
+
+      .meta-row { display: flex; justify-content: space-between; font-size: 0.83rem;
+                  padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+      .meta-row:last-child { border-bottom: none; }
+      .meta-key { color: #888; }
+      .meta-val { color: #333; font-weight: 500; text-align: right; max-width: 55%; }
+
+      /* Tips panel */
+      .tips-panel { display: none; background: #fffdf0; border: 1px solid #ffc107;
+                    border-radius: 8px; padding: 1.1rem 1.3rem; margin-bottom: 1rem; }
+      .tips-panel h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;
+                       color: #856404; margin: 0 0 0.8rem; }
+      .tips-section { margin-bottom: 0.85rem; }
+      .tips-section h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em;
+                         color: #888; margin: 0 0 0.35rem; }
+      .tips-section ul { margin: 0; padding-left: 1.2rem; }
+      .tips-section li { font-size: 0.86rem; margin-bottom: 0.25rem; line-height: 1.45; color: #333; }
+      .tips-section p  { font-size: 0.86rem; margin: 0; line-height: 1.45; color: #333; }
+      .kw-wrap { display: flex; flex-wrap: wrap; gap: 5px; }
+      .kw { background: #eef3ff; color: #1a4a9a; border-radius: 10px; padding: 2px 9px;
+            font-size: 0.78rem; }
+      .tips-loading { text-align: center; padding: 1.5rem; color: #666; font-size: 0.9rem; }
+      .tips-error   { color: #c00; font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>{{ job.get('title','') }} — {{ job.get('company_name') or job.get('company','') }}</h1>
+      <a href="javascript:history.back()">← Back</a>
+      <a href="/preview/{{ cache_key }}/{{ idx }}">Review &amp; Apply</a>
+      <a href="/saved-jobs">My Applications</a>
+    </div>
+
+    <div class="layout">
+
+      <!-- ── Main ── -->
+      <div class="main">
+
+        <!-- Header card -->
+        <div class="job-header">
+          <div class="job-title">{{ job.get('title','') }}</div>
+          <div class="job-company">
+            {{ job.get('company_name') or job.get('company','') }}
+            {% set loc = job.get('candidate_required_location') or job.get('location','') %}
+            {% if loc %} &mdash; {{ loc }}{% endif %}
+          </div>
+          {% if job.get('url') %}
+            <a class="job-url" href="{{ job.get('url') }}" target="_blank" rel="noopener">
+              {{ job.get('url')[:90] }}{% if job.get('url','')|length > 90 %}…{% endif %} ↗
+            </a>
+          {% endif %}
+
+          <div class="badges">
+            {% set tier = job.get('qualification_tier','Qualified') %}
+            {% if tier == 'Strongly Qualified' %}
+              <span class="badge b-strong">Strongly Qualified</span>
+            {% elif tier == 'Reach' %}
+              <span class="badge b-reach">Reach</span>
+            {% else %}
+              <span class="badge b-qual">Qualified</span>
+            {% endif %}
+            {% if job.get('political_tech') %}
+              <span class="badge b-pol">Pol/Gov Tech</span>
+            {% endif %}
+            {% if job.get('is_remote') %}
+              <span class="badge b-remote">Remote</span>
+            {% endif %}
+            {% if job.get('is_dc_metro') and not job.get('is_remote') %}
+              <span class="badge b-dc">DC Metro</span>
+            {% endif %}
+            {% if job.get('salary') %}
+              {% set sal = job.get('salary') %}
+              {% if 'est.' in sal %}
+                <span class="badge b-pay-est" title="{{ sal }}">~ {{ sal.split('(')[0].strip() }}</span>
+              {% else %}
+                <span class="badge b-pay">{{ sal }}</span>
+              {% endif %}
+            {% else %}
+              <span class="badge b-nopay">Salary unlisted</span>
+            {% endif %}
+            {% if job.get('category') %}
+              <span class="badge b-cat">{{ job.get('category') }}</span>
+            {% endif %}
+            {% if job.get('source') %}
+              <span class="badge b-source">{{ job.get('source') }}</span>
+            {% endif %}
+          </div>
+
+          <!-- Score strip -->
+          {% if job.get('ranking_score') %}
+            {% set rs = job.get('ranking_score', 0) %}
+            {% set sc = 'high' if rs >= 75 else ('mid' if rs >= 50 else 'low') %}
+            <div class="score-strip">
+              <div class="score-big">
+                <div class="score-num score-{{ sc }}">{{ rs }}</div>
+                <div class="score-label">/ 105</div>
+              </div>
+              <div class="score-breakdown">
+                <span>Skills {{ job.get('skills_score',0) }}/70</span>
+                <span>Pay {{ job.get('pay_score',0) }}/30</span>
+                {% if job.get('political_bonus') %}
+                  <span class="s-pol">+{{ job.get('political_bonus') }} pol bonus</span>
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Match reason -->
+        {% if job.get('match_reason') %}
+          <div class="match-reason">"{{ job.get('match_reason') }}"</div>
+        {% endif %}
+
+        <!-- Resume Tips panel (loaded on demand) -->
+        <div class="tips-panel" id="tips-panel">
+          <h3>Resume &amp; Cover Letter Tips</h3>
+          <div id="tips-inner"><div class="tips-loading">Analyzing&hellip;</div></div>
+        </div>
+
+        <!-- Description -->
+        <div class="desc-box">
+          <h3>Job Description</h3>
+          <div class="desc-content">{{ (job.get('description') or job.get('contents') or 'No description available.') | safe }}</div>
+        </div>
+
+      </div>
+
+      <!-- ── Sidebar ── -->
+      <div class="sidebar">
+
+        <div class="side-card">
+          <h3>Actions</h3>
+          <a class="action-btn ab-green" href="/preview/{{ cache_key }}/{{ idx }}">Review &amp; Apply</a>
+          {% if job.get('url') %}
+            <a class="action-btn ab-outline" href="{{ job.get('url') }}" target="_blank" rel="noopener">
+              ↗ View Original Posting
+            </a>
+          {% endif %}
+          <button class="action-btn ab-tips" onclick="loadTips()">Get Resume Tips</button>
+          <a class="action-btn ab-purple" href="/preview/{{ cache_key }}/{{ idx }}"
+             onclick="event.preventDefault(); document.getElementById('ai-tailor-form').submit()">
+            AI Tailor Cover Letter
+          </a>
+        </div>
+
+        <div class="side-card">
+          <h3>Job Details</h3>
+          {% if job.get('date_posted') %}
+            <div class="meta-row">
+              <span class="meta-key">Posted</span>
+              <span class="meta-val">{{ job.get('date_posted','')[:10] }}</span>
+            </div>
+          {% endif %}
+          {% if job.get('job_type') %}
+            <div class="meta-row">
+              <span class="meta-key">Type</span>
+              <span class="meta-val">{{ job.get('job_type') }}</span>
+            </div>
+          {% endif %}
+          {% if job.get('salary') %}
+            <div class="meta-row">
+              <span class="meta-key">Salary</span>
+              <span class="meta-val">{{ job.get('salary') }}</span>
+            </div>
+          {% endif %}
+          {% if job.get('match_score') %}
+            <div class="meta-row">
+              <span class="meta-key">Skills match</span>
+              <span class="meta-val">{{ job.get('match_score') }}/10</span>
+            </div>
+          {% endif %}
+          <div class="meta-row">
+            <span class="meta-key">Category</span>
+            <span class="meta-val">{{ job.get('category','Other') }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">Tier</span>
+            <span class="meta-val">{{ job.get('qualification_tier','—') }}</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-key">Remote</span>
+            <span class="meta-val">{{ 'Yes' if job.get('is_remote') else 'No' }}</span>
+          </div>
+          {% if job.get('is_dc_metro') %}
+            <div class="meta-row">
+              <span class="meta-key">DC Metro</span>
+              <span class="meta-val">Yes</span>
+            </div>
+          {% endif %}
+          {% if job.get('source') %}
+            <div class="meta-row">
+              <span class="meta-key">Source</span>
+              <span class="meta-val">{{ job.get('source') }}</span>
+            </div>
+          {% endif %}
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Hidden form to trigger AI tailor on preview page -->
+    <form id="ai-tailor-form" method="get" action="/preview/{{ cache_key }}/{{ idx }}" style="display:none">
+      <input type="hidden" name="tailor" value="1"/>
+    </form>
+
+    <script>
+      let tipsLoaded = false;
+
+      function loadTips() {
+        const panel = document.getElementById('tips-panel');
+        panel.style.display = 'block';
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        if (tipsLoaded) return;
+        tipsLoaded = true;
+
+        fetch('/resume-feedback/{{ cache_key }}/{{ idx }}')
+          .then(r => r.json())
+          .then(data => {
+            if (data.error) {
+              document.getElementById('tips-inner').innerHTML =
+                `<div class="tips-error">Error: ${data.error}</div>`;
+              return;
+            }
+            let html = '';
+
+            if (data.tier_reasoning) {
+              html += `<div class="tips-section"><p><em>${data.tier_reasoning}</em></p></div>`;
+            }
+            if (data.strengths && data.strengths.length) {
+              html += `<div class="tips-section"><h4>Strengths</h4><ul>`;
+              data.strengths.forEach(s => { html += `<li>${s}</li>`; });
+              html += `</ul></div>`;
+            }
+            if (data.gaps && data.gaps.length) {
+              html += `<div class="tips-section"><h4>Gaps to Address</h4><ul>`;
+              data.gaps.forEach(g => { html += `<li>${g}</li>`; });
+              html += `</ul></div>`;
+            }
+            if (data.resume_tips && data.resume_tips.length) {
+              html += `<div class="tips-section"><h4>Resume Edits</h4><ul>`;
+              data.resume_tips.forEach(t => { html += `<li>${t}</li>`; });
+              html += `</ul></div>`;
+            }
+            if (data.cover_angle) {
+              html += `<div class="tips-section"><h4>Cover Letter Angle</h4><p>${data.cover_angle}</p></div>`;
+            }
+            if (data.keywords && data.keywords.length) {
+              html += `<div class="tips-section"><h4>Keywords to Add</h4><div class="kw-wrap">`;
+              data.keywords.forEach(k => { html += `<span class="kw">${k}</span>`; });
+              html += `</div></div>`;
+            }
+
+            document.getElementById('tips-inner').innerHTML = html || '<p>No feedback available.</p>';
+          })
+          .catch(() => {
+            document.getElementById('tips-inner').innerHTML =
+              '<div class="tips-error">Failed to load tips. Try again.</div>';
+          });
+      }
+    </script>
+  </body>
+</html>

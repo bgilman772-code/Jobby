@@ -1,0 +1,188 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Finding matches...</title>
+    <style>
+      :root {
+        --brand: #1e3a6e;
+        --brand-mid: #2756a8;
+        --border: #dde1e8;
+        --bg: #f4f6f9;
+        --text-2: #555;
+        --text-3: #888;
+      }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+             max-width: 560px; margin: 6rem auto; text-align: center;
+             color: #1a1a1a; padding: 0 1.5rem; background: var(--bg); }
+
+      .card { background: white; border: 1px solid var(--border);
+              border-radius: 14px; padding: 2.2rem 2rem;
+              box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+
+      /* Spinner */
+      .spinner-wrap { margin-bottom: 1.6rem; }
+      .spinner-ring {
+        width: 44px; height: 44px;
+        border: 3px solid var(--border);
+        border-top-color: var(--brand-mid);
+        border-radius: 50%;
+        display: inline-block;
+        animation: spin 0.85s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* Heading */
+      h2 { font-size: 1.18rem; font-weight: 700; color: var(--brand);
+           margin: 0 0 1.5rem; letter-spacing: -0.01em; }
+
+      /* Progress bar */
+      .bar-wrap { background: var(--border); border-radius: 99px; height: 7px;
+                  margin: 0 auto 1.4rem; overflow: hidden; }
+      .bar { background: linear-gradient(90deg, var(--brand-mid), #4a8ae8);
+             height: 7px; width: 0; transition: width 0.55s ease;
+             border-radius: 99px; }
+
+      /* Step label */
+      .step-label { font-size: 0.92rem; font-weight: 600; color: var(--text-2);
+                    margin-bottom: 1.2rem; min-height: 1.4em; }
+
+      /* Source ticker */
+      .ticker-outer { height: 1.6em; overflow: hidden; position: relative;
+                      margin-bottom: 0.2rem; }
+      .ticker-inner { font-size: 0.82rem; color: var(--brand-mid);
+                      font-weight: 500; letter-spacing: 0.01em;
+                      transition: transform 0.28s cubic-bezier(.4,0,.2,1), opacity 0.28s;
+                      display: inline-block; }
+      .ticker-inner.slide-out { transform: translateY(-110%); opacity: 0; }
+      .ticker-inner.slide-in  { transform: translateY(110%);  opacity: 0; }
+
+      .progress-pct { font-size: 0.78rem; color: var(--text-3); margin-top: 0.5rem; }
+
+      .error { color: #c00; margin-top: 1rem; font-size: 0.88rem; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="spinner-wrap"><div class="spinner-ring" id="spinner"></div></div>
+      <h2>Finding your job matches</h2>
+
+      <div class="bar-wrap"><div class="bar" id="bar"></div></div>
+
+      <div class="step-label" id="step-label">Starting up…</div>
+
+      <div class="ticker-outer" id="ticker-outer" style="display:none">
+        <span class="ticker-inner" id="ticker"></span>
+      </div>
+
+      <div class="progress-pct" id="pct-label"></div>
+      <div class="error" id="error"></div>
+    </div>
+
+    <script>
+      const steps = {
+        starting:  { label: 'Starting up…',                                       pct: 5  },
+        analyzing: { label: 'Analyzing your resume with AI…',                     pct: 20 },
+        searching: { label: 'Searching 400+ company boards & job APIs…',          pct: 45 },
+        filtering: { label: 'Applying filters (salary, location, seniority)…',   pct: 65 },
+        scoring:   { label: 'AI scoring & ranking by skills match + salary…',     pct: 85 },
+        done:      { label: 'Done — loading your matches…',                       pct: 100 },
+      };
+
+      const SOURCES = [
+        'Indeed',
+        'Dice',
+        'LinkedIn Jobs',
+        'Greenhouse · 145 companies',
+        'Lever · 110 companies',
+        'Workday · 70 companies',
+        'Ashby',
+        'iCIMS',
+        'BambooHR',
+        'Remotive',
+        'Himalayas',
+        'RemoteOK',
+        'WeWorkRemotely',
+        'Adzuna',
+        'ZipRecruiter',
+        'SmartRecruiters',
+        'Jobvite',
+        'Built In',
+        'AngelList / Wellfound',
+        'AI scoring matches…',
+        'Ranking by salary fit…',
+        'Filtering by location…',
+      ];
+
+      let tickerTimer = null;
+      let tickerIdx   = 0;
+      const tickerEl  = document.getElementById('ticker');
+      const outerEl   = document.getElementById('ticker-outer');
+
+      function rotateTicker() {
+        // Slide out current
+        tickerEl.classList.add('slide-out');
+        setTimeout(() => {
+          tickerEl.textContent = SOURCES[tickerIdx % SOURCES.length];
+          tickerIdx++;
+          tickerEl.classList.remove('slide-out');
+          tickerEl.classList.add('slide-in');
+          // Force reflow so transition fires
+          tickerEl.getBoundingClientRect();
+          tickerEl.classList.remove('slide-in');
+        }, 290);
+      }
+
+      function startTicker() {
+        if (tickerTimer) return;
+        outerEl.style.display = 'block';
+        tickerEl.textContent = SOURCES[0];
+        tickerIdx = 1;
+        tickerTimer = setInterval(rotateTicker, 1100);
+      }
+
+      function stopTicker() {
+        if (tickerTimer) { clearInterval(tickerTimer); tickerTimer = null; }
+        outerEl.style.display = 'none';
+      }
+
+      let lastStatus = '';
+
+      function poll() {
+        fetch('/match-status/{{ task_id }}')
+          .then(r => r.json())
+          .then(data => {
+            const st = data.status;
+            const step = steps[st] || { label: st, pct: 10 };
+
+            document.getElementById('step-label').textContent = step.label;
+            document.getElementById('bar').style.width = step.pct + '%';
+            document.getElementById('pct-label').textContent = step.pct + '%';
+
+            if (st === 'searching' || st === 'filtering') {
+              startTicker();
+            } else {
+              stopTicker();
+            }
+
+            if (st === 'done') {
+              stopTicker();
+              document.getElementById('spinner').style.display = 'none';
+              window.location = data.redirect;
+            } else if (st === 'error') {
+              stopTicker();
+              document.getElementById('error').textContent = 'Error: ' + data.error;
+              document.getElementById('spinner').style.display = 'none';
+            } else {
+              setTimeout(poll, 2000);
+            }
+
+            lastStatus = st;
+          })
+          .catch(() => setTimeout(poll, 3000));
+      }
+      setTimeout(poll, 1500);
+    </script>
+  </body>
+</html>

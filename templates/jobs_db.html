@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Discovered Jobs</title>
+  </head>
+  <body>
+    <a href="/">Home</a>
+    <h1>Discovered Jobs</h1>
+    <form method="get">
+      <label>Company: <input name="company" value="{{ filters.company or '' }}"/></label>
+      <label>Title: <input name="title" value="{{ filters.title or '' }}"/></label>
+      <label>Location: <input name="location" value="{{ filters.location or '' }}"/></label>
+      <label>Remote: <select name="remote"><option value="">Any</option><option value="true">Yes</option><option value="false">No</option></select></label>
+      <label>Since days: <input name="since_days" value="{{ filters.since_days }}" size="3"/></label>
+      <button type="submit">Filter</button>
+    </form>
+    <ul>
+      {% for job in jobs %}
+        <li>
+          <strong>{{ job.title }}</strong> at {{ job.company }} — {{ job.location }} {% if job.remote %}(Remote){% endif %}
+          <div>Salary: {{ job.salary }}</div>
+          <div><a href="{{ job.url }}" target="_blank">Original</a> | <a href="/preview_cached?url={{ job.url }}">Review</a></div>
+          <details>
+            <summary>Description</summary>
+            <div>{{ job.description|safe }}</div>
+          </details>
+        </li>
+      {% else %}
+        <li>No jobs found.</li>
+      {% endfor %}
+    </ul>
+  </body>
+</html>

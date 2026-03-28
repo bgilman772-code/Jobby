@@ -1,0 +1,22 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Search results</title>
+  </head>
+  <body>
+    <h1>Results for "{{ query }}"</h1>
+    <a href="/">Back</a>
+    <ul>
+      {% for job in jobs %}
+        <li>
+          <strong>{{ job.title }}</strong> at {{ job.company_name }} —
+          <a href="/job/{{ key }}/{{ loop.index0 }}">Details</a> |
+          <a href="/preview/{{ key }}/{{ loop.index0 }}">Review & Customize</a>
+        </li>
+      {% else %}
+        <li>No jobs found.</li>
+      {% endfor %}
+    </ul>
+  </body>
+</html>

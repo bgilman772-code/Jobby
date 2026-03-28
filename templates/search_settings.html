@@ -1,0 +1,635 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Confirm Search Settings</title>
+    <style>
+      :root {
+        --brand: #1e3a6e;
+        --brand-mid: #2756a8;
+        --brand-light: #eef3fb;
+        --green: #1a7a2a;
+        --green-light: #e8f5eb;
+        --text: #1a1a1a;
+        --text-2: #555;
+        --text-3: #888;
+        --border: #dde1e8;
+        --bg: #f4f6f9;
+        --card: #ffffff;
+        --shadow: 0 1px 3px rgba(0,0,0,0.06);
+        --radius: 8px;
+      }
+      * { box-sizing: border-box; }
+      body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+             margin: 0; background: var(--bg); color: var(--text); font-size: 0.93rem; }
+
+      .topbar { background: var(--brand); color: white; padding: 0 1.5rem;
+                height: 52px; display: flex; align-items: center; gap: 1rem; }
+      .topbar h1 { margin: 0; font-size: 1.05rem; font-weight: 600; flex: 1; letter-spacing: -0.01em; }
+      .topbar a  { color: rgba(255,255,255,0.72); text-decoration: none; font-size: 0.85rem;
+                   font-weight: 500; transition: color 0.15s; }
+      .topbar a:hover { color: white; }
+
+      .layout { display: flex; max-width: 1160px; margin: 1.5rem auto; gap: 1.5rem; padding: 0 1rem; }
+
+      /* ── Shared card ── */
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+              box-shadow: var(--shadow); padding: 1.2rem 1.4rem; margin-bottom: 1rem; }
+      .card-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+                    letter-spacing: 0.06em; color: var(--text-3); margin: 0 0 0.85rem; }
+
+      /* ── Left: resume summary ── */
+      .col-left { width: 330px; flex-shrink: 0; }
+
+      .identity { display: flex; align-items: flex-start; gap: 0.9rem; margin-bottom: 0.5rem; }
+      .avatar { width: 44px; height: 44px; background: var(--brand); border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                color: white; font-size: 1.1rem; font-weight: 700; flex-shrink: 0; }
+      .identity-info h2 { margin: 0 0 0.2rem; font-size: 1rem; font-weight: 600; }
+      .identity-info p  { margin: 0; font-size: 0.82rem; color: var(--text-2); line-height: 1.4; }
+
+      .seniority-badge { display: inline-block; background: var(--green-light); color: #1a5c20;
+                         font-size: 0.72rem; padding: 2px 9px; border-radius: 10px;
+                         font-weight: 600; margin-top: 4px; }
+      .exp-badge { display: inline-block; background: var(--brand-light); color: var(--brand-mid);
+                   font-size: 0.72rem; padding: 2px 9px; border-radius: 10px; margin-left: 4px; }
+
+      /* Past roles */
+      .role-list { list-style: none; margin: 0; padding: 0; }
+      .role-list li { font-size: 0.84rem; padding: 4px 0; border-bottom: 1px solid #f0f2f5;
+                      color: var(--text-2); }
+      .role-list li:last-child { border-bottom: none; }
+      .role-list li::before { content: '– '; color: var(--text-3); }
+
+      /* Target roles */
+      .target-role { background: #f2ecff; color: #4a1a8a; border-radius: 12px;
+                     padding: 3px 10px; font-size: 0.78rem; display: inline-block; margin: 2px; }
+
+      /* ── Right: search config ── */
+      .col-right { flex: 1; min-width: 0; }
+
+      /* Step header inside card */
+      .step-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 0.9rem;
+                   padding-bottom: 0.75rem; border-bottom: 1px solid var(--border); }
+      .step-num { width: 26px; height: 26px; border-radius: 50%; background: var(--brand);
+                  color: white; display: flex; align-items: center; justify-content: center;
+                  font-size: 0.73rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+      .step-num.optional { background: var(--text-3); }
+      .step-head-text h3 { margin: 0 0 2px; font-size: 0.9rem; font-weight: 600; color: var(--text); }
+      .step-head-text p  { margin: 0; font-size: 0.77rem; color: var(--text-3); line-height: 1.45; }
+
+      .field { margin-bottom: 1rem; }
+      .field label { display: block; font-size: 0.82rem; color: var(--text-2); font-weight: 600;
+                     margin-bottom: 0.3rem; }
+      .field-note { font-size: 0.74rem; color: var(--text-3); margin-top: 4px; line-height: 1.4; }
+
+      select, input[type=text], input[type=number], textarea {
+        width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 5px;
+        font-size: 0.87rem; font-family: inherit; background: white; color: var(--text); }
+      select:focus, input:focus, textarea:focus { border-color: var(--brand-mid); outline: none; }
+
+      /* Query tags */
+      .query-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 0.5rem; }
+      .query-row { display: flex; align-items: center; gap: 6px; }
+      .query-row input[type=text] { flex: 1; }
+      .btn-rm { width: 28px; height: 28px; background: white; border: 1px solid var(--border);
+                border-radius: 4px; color: var(--text-3); cursor: pointer; font-size: 0.88rem;
+                flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+      .btn-rm:hover { background: #fff0f0; border-color: #f0b8b8; color: #c00; }
+      .btn-add-query { padding: 5px 14px; background: var(--bg); color: var(--brand-mid);
+                       border: 1px dashed var(--border); border-radius: 5px; cursor: pointer;
+                       font-size: 0.82rem; margin-top: 2px; font-family: inherit; }
+      .btn-add-query:hover { background: var(--brand-light); border-color: var(--brand-mid); }
+
+      /* Salary */
+      .salary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
+      /* Launch bar */
+      .launch-bar { background: var(--brand); border-radius: var(--radius); padding: 1.1rem 1.4rem;
+                    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+      .btn-launch { padding: 11px 30px; background: var(--green); color: white; border: none;
+                    border-radius: 6px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+                    font-family: inherit; transition: background 0.15s; }
+      .btn-launch:hover { background: #155e22; }
+      .launch-summary { font-size: 0.83rem; color: rgba(255,255,255,0.7); flex: 1; }
+
+      .info-box { background: var(--brand-light); border: 1px solid #b8d0f0; border-radius: 6px;
+                  padding: 0.65rem 0.9rem; font-size: 0.82rem; color: #1a3a6a; margin-bottom: 1rem; }
+
+      /* Editable skill tags */
+      .skill-cat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+                         color: #999; font-weight: 600; margin: 0.6rem 0 0.3rem; }
+      .skill-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 0.4rem; }
+      .skill-pill { border-radius: 14px; padding: 3px 11px; font-size: 0.8rem; cursor: pointer;
+                    user-select: none; border: 2px solid transparent; transition: all 0.12s; }
+      .skill-pill.on  { background: #1a3a6a; color: white; border-color: #1a3a6a; }
+      .skill-pill.off { background: #eef3ff; color: #1a3a6a; border-color: #c8d8f0; opacity: 0.55; }
+      .skill-pill.on:hover  { background: #12296a; }
+      .skill-pill.off:hover { opacity: 0.9; }
+      .add-skill-row { display: flex; gap: 6px; margin-top: 0.5rem; }
+      .add-skill-row input { flex: 1; }
+      .btn-add-skill { padding: 5px 14px; background: #f0f6ff; color: #1a5c9a;
+                       border: 1px dashed #1a5c9a; border-radius: 5px; cursor: pointer;
+                       font-size: 0.83rem; white-space: nowrap; }
+      .btn-add-skill:hover { background: #deeeff; }
+
+      /* City discovery */
+      .discover-row { display: flex; gap: 8px; margin-bottom: 0.8rem; }
+      .discover-row input { flex: 1; }
+      .btn-discover { padding: 7px 18px; background: #1a3a6a; color: white; border: none;
+                      border-radius: 5px; cursor: pointer; font-size: 0.88rem; white-space: nowrap; }
+      .btn-discover:hover { background: #12296a; }
+      .btn-discover:disabled { opacity: 0.5; cursor: not-allowed; }
+      .discover-results { margin-top: 0.6rem; }
+      .discover-industry { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em;
+                           color: #888; font-weight: 600; margin: 0.7rem 0 0.3rem; }
+      .discover-company-row { display: flex; align-items: center; gap: 8px; padding: 5px 6px;
+                               border-radius: 5px; font-size: 0.85rem; }
+      .discover-company-row:hover { background: #f5f7ff; }
+      .discover-company-row label { cursor: pointer; flex: 1; }
+      .discover-company-row .ats-badge { font-size: 0.7rem; color: #888; background: #f0f0f0;
+                                          padding: 1px 7px; border-radius: 8px; }
+      .btn-add-watchlist { margin-top: 0.8rem; padding: 7px 18px; background: #2a9a2a; color: white;
+                           border: none; border-radius: 5px; cursor: pointer; font-size: 0.85rem; }
+      .btn-add-watchlist:hover { background: #228822; }
+      .discover-msg { font-size: 0.82rem; color: #888; margin-top: 0.4rem; }
+      .discover-error { font-size: 0.82rem; color: #c00; margin-top: 0.4rem; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <h1>Review Search Settings</h1>
+      <a href="/">Home</a>
+    </div>
+
+    <form method="POST" action="/launch-search" id="search-form">
+    <div class="layout">
+
+      <!-- ── Left: Resume Summary ── -->
+      <div class="col-left">
+
+        <!-- Identity -->
+        <div class="card">
+          <div class="card-title">Profile being used for this search</div>
+          <div class="identity">
+            <div class="avatar">
+              {{ (parsed.get('name') or profile.get('name') or '?')[0].upper() }}
+            </div>
+            <div class="identity-info">
+              <h2>{{ parsed.get('name') or profile.get('name') or 'Unknown' }}</h2>
+              <p>{{ parsed.get('intro') or profile.get('intro') or '' }}</p>
+              <div>
+                {% if parsed.get('seniority') %}
+                  <span class="seniority-badge">{{ parsed.get('seniority').title() }}</span>
+                {% endif %}
+                {% if parsed.get('experience_years') %}
+                  <span class="exp-badge">{{ parsed.get('experience_years') }} yrs exp</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skills (editable) -->
+        <div class="card">
+          <div class="card-title">Skills used for matching — toggle on/off or add your own</div>
+          <div id="skill-pills-container">
+            {% set cats = parsed.get('skill_categories', {}) %}
+            {% if cats %}
+              {% for cat_key, cat_label in [('languages','Languages'),('tools','Tools / Frameworks'),('platforms','Platforms / Cloud'),('domains','Domains')] %}
+                {% if cats.get(cat_key) %}
+                  <div class="skill-cat-label">{{ cat_label }}</div>
+                  <div class="skill-pills">
+                    {% for skill in cats[cat_key] %}
+                      <span class="skill-pill on" data-skill="{{ skill }}" onclick="toggleSkill(this)">{{ skill }}</span>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+              {% set all_cat_skills = [] %}
+              {% for cat_key in ['languages','tools','platforms','domains'] %}
+                {% if cats.get(cat_key) %}{% for s in cats[cat_key] %}{% if all_cat_skills.append(s) %}{% endif %}{% endfor %}{% endif %}
+              {% endfor %}
+              {% set uncategorized = [] %}
+              {% for skill in parsed.get('skills', []) %}
+                {% if skill not in all_cat_skills %}{% if uncategorized.append(skill) %}{% endif %}{% endif %}
+              {% endfor %}
+              {% if uncategorized %}
+                <div class="skill-cat-label">Other</div>
+                <div class="skill-pills">
+                  {% for skill in uncategorized %}
+                    <span class="skill-pill on" data-skill="{{ skill }}" onclick="toggleSkill(this)">{{ skill }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% else %}
+              <div class="skill-pills">
+                {% for skill in parsed.get('skills', []) %}
+                  <span class="skill-pill on" data-skill="{{ skill }}" onclick="toggleSkill(this)">{{ skill }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </div>
+          <div class="add-skill-row">
+            <input type="text" id="new-skill-input" placeholder="Add a skill…" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomSkill();}"/>
+            <button type="button" class="btn-add-skill" onclick="addCustomSkill()">+ Add</button>
+          </div>
+          <!-- Hidden inputs synced by JS -->
+          <div id="skill-hidden-inputs"></div>
+        </div>
+
+        <!-- Past job titles -->
+        {% if parsed.get('job_titles') %}
+        <div class="card">
+          <div class="card-title">Past job titles</div>
+          <ul class="role-list">
+            {% for title in parsed.get('job_titles', [])[:8] %}
+              <li>{{ title }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <!-- Target roles -->
+        {% if parsed.get('target_roles') %}
+        <div class="card">
+          <div class="card-title">Target roles (AI suggested)</div>
+          {% for role in parsed.get('target_roles', []) %}
+            <span class="target-role">{{ role }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+      </div>
+
+      <!-- ── Right: Search Config ── -->
+      <div class="col-right">
+
+        <div class="info-box" style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
+          <span>Review and adjust the settings below, then click <strong>Launch Job Search</strong> at the bottom.</span>
+          {% if cache_age is not none %}
+            <span style="white-space:nowrap;color:var(--brand-mid);font-size:0.77rem;flex-shrink:0">
+              Cache: {{ cache_age }}h old &mdash;
+              <form method="POST" action="/clear-source-cache" style="display:inline">
+                <button type="submit" style="background:none;border:none;color:#c05c00;cursor:pointer;font-size:0.77rem;padding:0;text-decoration:underline">refresh</button>
+              </form>
+            </span>
+          {% endif %}
+        </div>
+
+        <!-- Step 1: Search queries -->
+        <div class="card">
+          <div class="step-head">
+            <div class="step-num">1</div>
+            <div class="step-head-text">
+              <h3>Search queries</h3>
+              <p>These are sent to Greenhouse, Lever, Workday, Adzuna, and 200+ other boards. Edit or remove any that don't apply to you, and add ones that do.</p>
+            </div>
+          </div>
+          <div class="query-list" id="query-list">
+            {% for q in parsed.get('search_queries', []) %}
+              <div class="query-row">
+                <input type="text" name="queries" value="{{ q }}"/>
+                <button type="button" class="btn-rm" onclick="removeQuery(this)">&times;</button>
+              </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="btn-add-query" onclick="addQuery()">+ Add query</button>
+        </div>
+
+        <!-- Step 2: Ideal position -->
+        <div class="card">
+          <div class="step-head">
+            <div class="step-num">2</div>
+            <div class="step-head-text">
+              <h3>Describe your ideal position</h3>
+              <p>AI uses this to generate additional targeted queries on top of the ones above. The more specific, the better.</p>
+            </div>
+          </div>
+          <textarea name="ideal_position" rows="3" id="ideal-position-ta"
+            placeholder="e.g. Senior data analyst at a mission-driven org in political tech or civic data. Prefer remote or DC-area. Python, SQL, and Tableau work. Not interested in pure finance or ad-tech roles.">{{ profile.get('ideal_position') or parsed.get('ideal_position_summary') or '' }}</textarea>
+          <div class="field-note" style="margin-top:5px">Leave blank to skip AI query generation.</div>
+        </div>
+
+        <!-- Step 3: Salary -->
+        <div class="card">
+          <div class="step-head">
+            <div class="step-num">3</div>
+            <div class="step-head-text">
+              <h3>Salary filter</h3>
+              <p>Jobs below this threshold are excluded from results. Set to "No minimum" to see all jobs including those without listed salaries.</p>
+            </div>
+          </div>
+          <div class="salary-grid">
+            <div class="field">
+              <label>Minimum salary</label>
+              <select name="min_salary" id="min-salary">
+                <option value="0">No minimum</option>
+                <option value="80000">$80K+</option>
+                <option value="100000" selected>$100K+ (default)</option>
+                <option value="125000">$125K+</option>
+                <option value="150000">$150K+</option>
+                <option value="175000">$175K+</option>
+                <option value="200000">$200K+</option>
+                <option value="250000">$250K+</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Location rules</label>
+              <div style="font-size:0.79rem;color:var(--text-2);line-height:1.7;padding-top:2px">
+                Under $200K: remote, DC metro, Miami, or Austin<br/>
+                $200K+: anywhere in the US
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Company watchlist (optional) -->
+        <div class="card">
+          <div class="step-head">
+            <div class="step-num optional">4</div>
+            <div class="step-head-text">
+              <h3>Company watchlist <span style="font-size:0.72rem;font-weight:400;color:var(--text-3)">(optional)</span></h3>
+              <p>Scrape specific companies' career pages directly, in addition to the broad search above. Use the city discovery tool below to find companies to add.</p>
+            </div>
+          </div>
+          <textarea name="watchlist" rows="5"
+                    placeholder="Pew Research Center&#10;Quorum Analytics | https://quorum.breezy.hr&#10;Urban Institute&#10;Company Name | https://company.com/careers"
+                    style="font-family:monospace;font-size:0.82rem">{% for c in parsed.get('custom_companies', []) %}{{ c.get('name','') }}{% if c.get('url') %} | {{ c.get('url') }}{% endif %}
+{% endfor %}</textarea>
+          <div class="field-note">One company per line. Just a name works — we'll detect their job board. Add <code>| https://url</code> to target a specific page.</div>
+        </div>
+
+        <!-- Step 5: City discovery (optional) -->
+        <div class="card">
+          <div class="step-head">
+            <div class="step-num optional">5</div>
+            <div class="step-head-text">
+              <h3>Discover companies in a city <span style="font-size:0.72rem;font-weight:400;color:var(--text-3)">(optional)</span></h3>
+              <p>Enter a city and AI will suggest companies there that hire for your profile. Selected companies get added to the watchlist above.</p>
+            </div>
+          </div>
+          <div class="discover-row">
+            <input type="text" id="discover-city-input" placeholder="e.g. Washington DC, Austin TX, Seattle WA" onkeydown="if(event.key==='Enter'){event.preventDefault();discoverCompanies();}"/>
+            <button type="button" class="btn-discover" id="discover-btn" onclick="discoverCompanies()">Discover</button>
+          </div>
+          <div id="discover-results"></div>
+        </div>
+
+        <!-- Step 6: Extra keywords (optional) -->
+        <div class="card">
+          <div class="step-head">
+            <div class="step-num optional">6</div>
+            <div class="step-head-text">
+              <h3>Extra keywords <span style="font-size:0.72rem;font-weight:400;color:var(--text-3)">(optional)</span></h3>
+              <p>Any additional search terms to run alongside the queries in Step 1. Comma or newline separated.</p>
+            </div>
+          </div>
+          <textarea name="extra_queries" rows="2"
+                    placeholder="e.g. political data analyst, civic tech engineer, campaign analytics"></textarea>
+        </div>
+
+        <!-- Step 7: Optional API keys info -->
+        <div class="card" style="border-color:#c8d8f0;background:#f7faff">
+          <div class="step-head">
+            <div class="step-num optional">7</div>
+            <div class="step-head-text">
+              <h3>Unlock more sources <span style="font-size:0.72rem;font-weight:400;color:var(--text-3)">(optional env vars)</span></h3>
+              <p>Set these environment variables before starting Jobby to activate additional job sources.</p>
+            </div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+            <thead>
+              <tr style="border-bottom:1px solid var(--border);text-align:left">
+                <th style="padding:5px 8px;color:var(--text-3);font-weight:600">Env var</th>
+                <th style="padding:5px 8px;color:var(--text-3);font-weight:600">Unlocks</th>
+                <th style="padding:5px 8px;color:var(--text-3);font-weight:600">Free tier?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom:1px solid #f0f2f5">
+                <td style="padding:5px 8px;font-family:monospace;color:#1a3a6a">BING_SEARCH_KEY</td>
+                <td style="padding:5px 8px">Web discovery — finds new companies on Greenhouse/Lever/Ashby via Bing search</td>
+                <td style="padding:5px 8px;color:#1a7a1a">✓ Azure free tier (1K calls/mo)</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f0f2f5">
+                <td style="padding:5px 8px;font-family:monospace;color:#1a3a6a">JSEARCH_API_KEY</td>
+                <td style="padding:5px 8px">JSearch (RapidAPI) — searches Indeed, LinkedIn, Glassdoor &amp; ZipRecruiter simultaneously</td>
+                <td style="padding:5px 8px;color:#1a7a1a">✓ 200 req/mo free</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f0f2f5">
+                <td style="padding:5px 8px;font-family:monospace;color:#1a3a6a">JOOBLE_API_KEY</td>
+                <td style="padding:5px 8px">Jooble — broad aggregator covering regional boards not on other APIs</td>
+                <td style="padding:5px 8px;color:#1a7a1a">✓ Free key available</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f0f2f5">
+                <td style="padding:5px 8px;font-family:monospace;color:#1a3a6a">ADZUNA_APP_ID / KEY</td>
+                <td style="padding:5px 8px">Adzuna — location-anchored search for DC, Miami, Austin (Russell 2000 companies)</td>
+                <td style="padding:5px 8px;color:#1a7a1a">✓ 25K calls/mo free</td>
+              </tr>
+              <tr>
+                <td style="padding:5px 8px;font-family:monospace;color:#1a3a6a">USAJOBS_API_KEY</td>
+                <td style="padding:5px 8px">USAJobs — all federal government openings</td>
+                <td style="padding:5px 8px;color:#1a7a1a">✓ Free</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="font-size:0.75rem;color:var(--text-3);margin-top:0.6rem">
+            Already active (no key needed): <strong>Indeed RSS, Dice.com, Greenhouse, Lever, Workday, Ashby, iCIMS, BambooHR, RemoteOK, Himalayas, WeWorkRemotely, Remotive, Jobicy, The Muse, SmartRecruiters, Arbeitnow</strong>
+          </div>
+        </div>
+
+        <!-- Launch -->
+        <div class="launch-bar">
+          <button class="btn-launch" type="submit">Launch Job Search</button>
+          <div class="launch-summary" id="launch-summary">
+            Loading query count&hellip;
+          </div>
+          <a href="/" style="color:rgba(255,255,255,0.55);font-size:0.84rem;text-decoration:none">Cancel</a>
+        </div>
+
+      </div>
+    </div>
+    </form>
+
+    <script>
+      // ── Query management ──────────────────────────────────────────────────────
+      function removeQuery(btn) {
+        btn.closest('.query-row').remove();
+        updateSummary();
+      }
+
+      function addQuery() {
+        const row = document.createElement('div');
+        row.className = 'query-row';
+        row.innerHTML = `<input type="text" name="queries" placeholder="e.g. data analyst"/>
+                         <button type="button" class="btn-rm" onclick="removeQuery(this)">&times;</button>`;
+        document.getElementById('query-list').appendChild(row);
+        row.querySelector('input').focus();
+        updateSummary();
+      }
+
+      function updateSummary() {
+        const queries = document.querySelectorAll('input[name="queries"]');
+        const filled = Array.from(queries).filter(i => i.value.trim()).length;
+        const salary = document.getElementById('min-salary');
+        const salLabel = salary.options[salary.selectedIndex].text;
+        const watchlistEl = document.querySelector('textarea[name="watchlist"]');
+        const watchlistCount = watchlistEl
+          ? watchlistEl.value.split('\n').filter(l => l.trim()).length : 0;
+        const watchPart = watchlistCount > 0 ? ` · ${watchlistCount} custom compan${watchlistCount === 1 ? 'y' : 'ies'}` : '';
+        document.getElementById('launch-summary').textContent =
+          `${filled} search quer${filled === 1 ? 'y' : 'ies'} · min salary ${salLabel} · 300+ boards${watchPart}`;
+      }
+
+      document.getElementById('min-salary').addEventListener('change', updateSummary);
+      document.querySelectorAll('input[name="queries"]').forEach(inp =>
+        inp.addEventListener('input', updateSummary));
+      const watchlistTA = document.querySelector('textarea[name="watchlist"]');
+      if (watchlistTA) watchlistTA.addEventListener('input', updateSummary);
+
+      updateSummary();
+
+      // ── Skill pill toggling ───────────────────────────────────────────────────
+      function toggleSkill(el) {
+        el.classList.toggle('on');
+        el.classList.toggle('off');
+        syncSkillHiddens();
+      }
+
+      function addCustomSkill() {
+        const inp = document.getElementById('new-skill-input');
+        const val = inp.value.trim();
+        if (!val) return;
+        // Check not already added
+        const existing = document.querySelector(`.skill-pill[data-skill="${val}"]`);
+        if (existing) {
+          existing.classList.add('on');
+          existing.classList.remove('off');
+          inp.value = '';
+          syncSkillHiddens();
+          return;
+        }
+        // Create pill in a new "Custom" section or append to last pill group
+        let container = document.getElementById('custom-skills-pills');
+        if (!container) {
+          const label = document.createElement('div');
+          label.className = 'skill-cat-label';
+          label.textContent = 'Custom';
+          const pills = document.createElement('div');
+          pills.className = 'skill-pills';
+          pills.id = 'custom-skills-pills';
+          document.getElementById('skill-pills-container').appendChild(label);
+          document.getElementById('skill-pills-container').appendChild(pills);
+          container = pills;
+        }
+        const pill = document.createElement('span');
+        pill.className = 'skill-pill on';
+        pill.dataset.skill = val;
+        pill.textContent = val;
+        pill.onclick = function() { toggleSkill(this); };
+        container.appendChild(pill);
+        inp.value = '';
+        syncSkillHiddens();
+      }
+
+      function syncSkillHiddens() {
+        const hiddenDiv = document.getElementById('skill-hidden-inputs');
+        hiddenDiv.innerHTML = '';
+        document.querySelectorAll('.skill-pill.on').forEach(pill => {
+          const inp = document.createElement('input');
+          inp.type = 'hidden';
+          inp.name = 'selected_skills';
+          inp.value = pill.dataset.skill;
+          hiddenDiv.appendChild(inp);
+        });
+      }
+
+      // Initial sync
+      syncSkillHiddens();
+
+      // ── City company discovery ────────────────────────────────────────────────
+      function discoverCompanies() {
+        const city = document.getElementById('discover-city-input').value.trim();
+        if (!city) return;
+        const btn = document.getElementById('discover-btn');
+        const resultsDiv = document.getElementById('discover-results');
+        btn.disabled = true;
+        btn.textContent = 'Searching…';
+        resultsDiv.innerHTML = '<div class="discover-msg">Asking AI to find companies hiring in ' + escHtml(city) + '…</div>';
+
+        fetch('/discover-companies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ city })
+        })
+        .then(r => r.json())
+        .then(data => {
+          btn.disabled = false;
+          btn.textContent = 'Discover';
+          if (data.error) {
+            resultsDiv.innerHTML = '<div class="discover-error">Error: ' + escHtml(data.error) + '</div>';
+            return;
+          }
+          const companies = data.companies || [];
+          if (!companies.length) {
+            resultsDiv.innerHTML = '<div class="discover-msg">No companies found for that city.</div>';
+            return;
+          }
+          // Group by industry
+          const byIndustry = {};
+          companies.forEach(c => {
+            const ind = c.industry || 'Other';
+            if (!byIndustry[ind]) byIndustry[ind] = [];
+            byIndustry[ind].push(c);
+          });
+          let html = '<div class="discover-results">';
+          Object.entries(byIndustry).forEach(([industry, comps]) => {
+            html += `<div class="discover-industry">${escHtml(industry)}</div>`;
+            comps.forEach((c, i) => {
+              const id = 'dc_' + Math.random().toString(36).slice(2);
+              const ats = c.ats ? `<span class="ats-badge">${escHtml(c.ats)}</span>` : '';
+              const url = c.career_url || '';
+              const name = c.name || '';
+              html += `<div class="discover-company-row">
+                <input type="checkbox" id="${id}" data-name="${escHtml(name)}" data-url="${escHtml(url)}" checked/>
+                <label for="${id}">${escHtml(name)}</label>
+                ${ats}
+              </div>`;
+            });
+          });
+          html += `<button type="button" class="btn-add-watchlist" onclick="addDiscoveredToWatchlist()">Add Selected to Watchlist</button>`;
+          html += '</div>';
+          resultsDiv.innerHTML = html;
+        })
+        .catch(err => {
+          btn.disabled = false;
+          btn.textContent = 'Discover';
+          resultsDiv.innerHTML = '<div class="discover-error">Request failed: ' + escHtml(String(err)) + '</div>';
+        });
+      }
+
+      function addDiscoveredToWatchlist() {
+        const checks = document.querySelectorAll('#discover-results input[type=checkbox]:checked');
+        const watchlistTA = document.querySelector('textarea[name="watchlist"]');
+        if (!watchlistTA || !checks.length) return;
+        const current = watchlistTA.value.trimEnd();
+        const lines = [];
+        checks.forEach(cb => {
+          const name = cb.dataset.name || '';
+          const url = cb.dataset.url || '';
+          lines.push(url ? `${name} | ${url}` : name);
+        });
+        watchlistTA.value = (current ? current + '\n' : '') + lines.join('\n');
+        updateSummary();
+        // Visual feedback
+        const btn = document.querySelector('.btn-add-watchlist');
+        if (btn) { btn.textContent = `Added ${lines.length}`; btn.disabled = true; }
+      }
+
+      function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+    </script>
+  </body>
+</html>
