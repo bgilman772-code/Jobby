@@ -159,14 +159,31 @@
       .save-bar { display: flex; align-items: center; gap: 10px; padding-top: 0.5rem;
                   border-top: 1px solid var(--border); margin-top: 0.5rem; flex-wrap: wrap; }
       .save-bar p { margin: 0; font-size: 0.73rem; color: var(--text-3); flex: 1; line-height: 1.4; }
+
+      /* ── Tabs ── */
+      .tab-nav { display: flex; gap: 4px; margin-bottom: 1.2rem;
+                 background: white; border: 1px solid var(--border); border-radius: var(--radius);
+                 padding: 4px; }
+      .tab-btn { flex: 1; padding: 8px 12px; border-radius: 5px; border: none; cursor: pointer;
+                 font-size: 0.85rem; font-weight: 500; font-family: inherit;
+                 background: transparent; color: var(--text-2); transition: all 0.15s; }
+      .tab-btn:hover { background: var(--bg); }
+      .tab-btn.active { background: var(--brand); color: white; }
+
+      /* ── EEO / autofill prefs ── */
+      .eeo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 1rem; }
+      .eeo-grid .full { grid-column: 1 / -1; }
+      select.field-select { width: 100%; padding: 7px 10px; border: 1px solid var(--border);
+                            border-radius: 5px; font-size: 0.88rem; font-family: inherit;
+                            color: var(--text); background: white; }
+      select.field-select:focus { outline: none; border-color: var(--brand-mid); }
     </style>
   </head>
   <body>
     <div class="topbar">
       <h1>Jobby</h1>
       <a href="/saved-jobs">My Applications{% if app_counts %} ({{ app_counts.values()|sum }}){% endif %}</a>
-      <a href="/jobs_db">Scraped Jobs</a>
-      <a href="/site-credentials">Job Board Accounts</a>
+<a href="/site-credentials">Job Board Accounts</a>
       {% if username %}<span style="font-size:0.8rem;color:rgba(255,255,255,0.5);">{{ username }}</span>{% endif %}
       <a href="/logout" style="color:#f99;font-size:0.82rem;">Sign Out</a>
     </div>
@@ -205,6 +222,15 @@
             {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
           {% endif %}
         {% endwith %}
+
+        <!-- Tab navigation -->
+        <div class="tab-nav">
+          <button class="tab-btn active" id="tab-btn-profile" onclick="showTab('profile')">Profile &amp; Files</button>
+          <button class="tab-btn" id="tab-btn-qa" onclick="showTab('qa')">Q&amp;A Bank {% if qa_bank %}({{ qa_bank|length }}){% endif %}</button>
+        </div>
+
+        <!-- ── Tab: Profile ── -->
+        <div id="tab-profile">
 
         <form action="/upload" method="post" enctype="multipart/form-data">
 
@@ -268,6 +294,10 @@
                 <label for="f-website">Website / Portfolio <span class="opt">optional</span></label>
                 <input id="f-website" type="text" name="website" value="{{ profile.get('website','') }}" placeholder="https://yoursite.com"/>
               </div>
+              <div class="field">
+                <label for="f-github">GitHub URL <span class="opt">optional</span></label>
+                <input id="f-github" type="text" name="github" value="{{ profile.get('github','') }}" placeholder="https://github.com/username"/>
+              </div>
               <div class="field full">
                 <label for="f-intro">One-line intro <span class="opt">shown on applications</span></label>
                 <input id="f-intro" type="text" name="intro" value="{{ profile.get('intro','') }}"
@@ -277,12 +307,6 @@
                 <label for="f-skills">Key skills <span class="opt">brief summary for auto-fill</span></label>
                 <textarea id="f-skills" name="skills" rows="2"
                   placeholder="e.g. Python, SQL, Tableau, dbt, campaign analytics, electoral data">{{ profile.get('skills','') }}</textarea>
-              </div>
-              <div class="field full">
-                <label for="f-ideal">Ideal Position <span class="opt">used to generate extra search queries</span></label>
-                <textarea id="f-ideal" name="ideal_position" rows="3"
-                  placeholder="Describe what you're looking for — role type, industry, company size, location preference. The more specific, the better the AI search queries.">{{ profile.get('ideal_position','') }}</textarea>
-                <div class="hint">Example: "Senior data analyst at a mission-driven nonprofit or gov-tech org. Prefer remote or DC-area. Love Python, SQL, and electoral/civic data."</div>
               </div>
             </div>
 
@@ -320,6 +344,62 @@
           </div>
         {% endif %}
 
+        <!-- EEO & Autofill Preferences -->
+        <div class="card">
+          <div class="section-head">
+            <div class="section-num" style="background:#0e7a4e;font-size:0.7rem">EEO</div>
+            <div>
+              <h2>Demographics &amp; Autofill Preferences</h2>
+              <p>Used by auto-fill for EEO equal opportunity questions. Selecting values here answers those questions automatically; leave blank to decline.</p>
+            </div>
+          </div>
+          <div class="eeo-grid">
+            <div class="field">
+              <label class="field" for="eeo-gender" style="font-size:0.79rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:0.2rem">Gender <span class="opt">optional</span></label>
+              <select class="field-select" id="eeo-gender">
+                <option value="">Decline to self-identify</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Non-binary">Non-binary / third gender</option>
+                <option value="Prefer to self-describe">Prefer to self-describe</option>
+              </select>
+            </div>
+            <div class="field">
+              <label style="font-size:0.79rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:0.2rem">Race / Ethnicity <span class="opt">optional</span></label>
+              <select class="field-select" id="eeo-race">
+                <option value="">Decline to self-identify</option>
+                <option value="White (not Hispanic or Latino)">White (not Hispanic or Latino)</option>
+                <option value="Black or African American">Black or African American</option>
+                <option value="Hispanic or Latino">Hispanic or Latino</option>
+                <option value="Asian">Asian</option>
+                <option value="American Indian or Alaska Native">American Indian or Alaska Native</option>
+                <option value="Native Hawaiian or Other Pacific Islander">Native Hawaiian or Pacific Islander</option>
+                <option value="Two or more races">Two or more races</option>
+              </select>
+            </div>
+            <div class="field">
+              <label style="font-size:0.79rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:0.2rem">Veteran Status <span class="opt">optional</span></label>
+              <select class="field-select" id="eeo-veteran">
+                <option value="">Decline to self-identify</option>
+                <option value="I am not a protected veteran">I am not a protected veteran</option>
+                <option value="I am a protected veteran">I am a protected veteran</option>
+              </select>
+            </div>
+            <div class="field">
+              <label style="font-size:0.79rem;font-weight:600;color:var(--text-2);display:block;margin-bottom:0.2rem">Disability <span class="opt">optional</span></label>
+              <select class="field-select" id="eeo-disability">
+                <option value="">Decline to self-identify</option>
+                <option value="No, I don't have a disability">No, I don't have a disability</option>
+                <option value="Yes, I have a disability">Yes, I have a disability</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:0.9rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+            <button class="btn btn-primary" type="button" onclick="saveEEO()" id="eeo-save-btn">Save Demographics</button>
+            <span id="eeo-status" style="margin-left:0.8rem;font-size:0.82rem;color:var(--green)"></span>
+          </div>
+        </div>
+
         <div class="manual-card">
           <div class="label">Manual Job Search</div>
           <div class="search-row">
@@ -329,24 +409,294 @@
             </form>
           </div>
         </div>
+
+        </div><!-- end tab-profile -->
+
+        <!-- ── Tab: Q&A Bank ── -->
+        <div id="tab-qa" style="display:none">
+        <div class="card" id="qa-bank-card">
+          <div class="section-head">
+            <div class="section-num" style="background:#0e7a4e;font-size:0.7rem">Q&amp;A</div>
+            <div style="flex:1">
+              <h2>Application Q&amp;A Bank</h2>
+              <p>Saved answers to common application questions. Auto-fill uses these first, then generates new ones with AI — which are saved here automatically.</p>
+            </div>
+          </div>
+
+          <!-- Existing entries -->
+          <div id="qa-list" style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1rem">
+            {% if qa_bank %}
+              {% for entry in qa_bank %}
+              <div class="qa-entry" data-index="{{ loop.index0 }}" style="border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem 1rem;background:#fafafa">
+                <div style="display:flex;align-items:flex-start;gap:0.5rem">
+                  <div style="flex:1">
+                    <div class="qa-q" contenteditable="false"
+                         style="font-weight:600;font-size:0.87rem;color:var(--text);margin-bottom:0.35rem;cursor:text;border-radius:4px;padding:2px 4px">{{ entry.question }}</div>
+                    <div class="qa-a" contenteditable="false"
+                         style="font-size:0.85rem;color:var(--text-2);white-space:pre-wrap;cursor:text;border-radius:4px;padding:2px 4px">{{ entry.answer }}</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+                    <button class="btn-qa-edit" onclick="qaEdit(this)" title="Edit"
+                            style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:0.75rem;cursor:pointer;color:var(--brand-mid)">Edit</button>
+                    <button class="btn-qa-del" onclick="qaDelete(this)" title="Delete"
+                            style="background:none;border:1px solid #f0c0c0;border-radius:4px;padding:3px 8px;font-size:0.75rem;cursor:pointer;color:#c00">Del</button>
+                  </div>
+                </div>
+                <div class="qa-save-row" style="display:none;margin-top:0.5rem;gap:0.4rem;justify-content:flex-end">
+                  <button onclick="qaSave(this)" style="background:var(--green);color:white;border:none;border-radius:4px;padding:4px 12px;font-size:0.8rem;cursor:pointer">Save</button>
+                  <button onclick="qaCancel(this)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:0.8rem;cursor:pointer">Cancel</button>
+                </div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <p id="qa-empty" style="color:var(--text-3);font-size:0.85rem;margin:0">
+                No saved answers yet. Auto-fill will populate this automatically when it answers questions with AI.
+              </p>
+            {% endif %}
+          </div>
+
+          <!-- Add new entry -->
+          <details style="border:1px dashed var(--border);border-radius:var(--radius);padding:0.75rem 1rem">
+            <summary style="cursor:pointer;font-weight:600;font-size:0.85rem;color:var(--brand-mid)">+ Add a question &amp; answer manually</summary>
+            <div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem">
+              <input id="qa-new-q" type="text" placeholder="Question (e.g. Why do you want to work here?)"
+                     style="width:100%;padding:0.45rem 0.65rem;border:1px solid var(--border);border-radius:4px;font-size:0.87rem"/>
+              <textarea id="qa-new-a" rows="3" placeholder="Your answer…"
+                        style="width:100%;padding:0.45rem 0.65rem;border:1px solid var(--border);border-radius:4px;font-size:0.85rem;resize:vertical"></textarea>
+              <div>
+                <button onclick="qaAddNew()" style="background:var(--brand);color:white;border:none;border-radius:4px;padding:6px 16px;font-size:0.85rem;cursor:pointer">Add to Bank</button>
+                <span id="qa-add-status" style="margin-left:0.6rem;font-size:0.8rem;color:var(--green)"></span>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <script>
+        // ── Q&A bank JS ───────────────────────────────────────────────────────
+
+        function qaEdit(btn) {
+          const entry = btn.closest('.qa-entry');
+          const q = entry.querySelector('.qa-q');
+          const a = entry.querySelector('.qa-a');
+          const saveRow = entry.querySelector('.qa-save-row');
+          // Store originals for cancel
+          entry.dataset.origQ = q.innerText;
+          entry.dataset.origA = a.innerText;
+          q.contentEditable = 'true';
+          a.contentEditable = 'true';
+          q.style.outline = '2px solid var(--brand-mid)';
+          a.style.outline = '2px solid var(--brand-mid)';
+          q.focus();
+          saveRow.style.display = 'flex';
+          btn.style.display = 'none';
+        }
+
+        function qaCancel(btn) {
+          const entry = btn.closest('.qa-entry');
+          const q = entry.querySelector('.qa-q');
+          const a = entry.querySelector('.qa-a');
+          q.innerText = entry.dataset.origQ;
+          a.innerText = entry.dataset.origA;
+          q.contentEditable = 'false';
+          a.contentEditable = 'false';
+          q.style.outline = '';
+          a.style.outline = '';
+          entry.querySelector('.qa-save-row').style.display = 'none';
+          entry.querySelector('.btn-qa-edit').style.display = '';
+        }
+
+        function qaSave(btn) {
+          const entry = btn.closest('.qa-entry');
+          const idx   = parseInt(entry.dataset.index);
+          const q     = entry.querySelector('.qa-q').innerText.trim();
+          const a     = entry.querySelector('.qa-a').innerText.trim();
+          fetch('/api/qa-bank', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question: q, answer: a, index: idx})
+          }).then(r => r.json()).then(data => {
+            if (data.ok) {
+              entry.querySelector('.qa-q').contentEditable = 'false';
+              entry.querySelector('.qa-a').contentEditable = 'false';
+              entry.querySelector('.qa-q').style.outline = '';
+              entry.querySelector('.qa-a').style.outline = '';
+              entry.querySelector('.qa-save-row').style.display = 'none';
+              entry.querySelector('.btn-qa-edit').style.display = '';
+            } else {
+              alert('Save failed: ' + (data.error || 'unknown error'));
+            }
+          }).catch(() => alert('Save failed — check your connection.'));
+        }
+
+        function qaDelete(btn) {
+          if (!confirm('Delete this Q&A entry?')) return;
+          const entry = btn.closest('.qa-entry');
+          const idx   = parseInt(entry.dataset.index);
+          fetch('/api/qa-bank/delete', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({index: idx})
+          }).then(r => r.json()).then(data => {
+            if (data.ok) {
+              entry.remove();
+              // Re-index remaining entries
+              document.querySelectorAll('.qa-entry').forEach((el, i) => {
+                el.dataset.index = i;
+              });
+              if (!document.querySelector('.qa-entry')) {
+                document.getElementById('qa-list').innerHTML =
+                  '<p id="qa-empty" style="color:var(--text-3);font-size:0.85rem;margin:0">No saved answers yet.</p>';
+              }
+            }
+          }).catch(() => alert('Delete failed.'));
+        }
+
+        function qaAddNew() {
+          const q = document.getElementById('qa-new-q').value.trim();
+          const a = document.getElementById('qa-new-a').value.trim();
+          const status = document.getElementById('qa-add-status');
+          if (!q || !a) { status.style.color='#c00'; status.textContent='Both fields required.'; return; }
+          fetch('/api/qa-bank', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question: q, answer: a})
+          }).then(r => r.json()).then(data => {
+            if (data.ok) {
+              status.style.color = 'var(--green)';
+              status.textContent = 'Saved!';
+              document.getElementById('qa-new-q').value = '';
+              document.getElementById('qa-new-a').value = '';
+              // Inject new entry into the list
+              const empty = document.getElementById('qa-empty');
+              if (empty) empty.remove();
+              const list = document.getElementById('qa-list');
+              const idx  = list.querySelectorAll('.qa-entry').length;
+              const div  = document.createElement('div');
+              div.className = 'qa-entry';
+              div.dataset.index = idx;
+              div.style.cssText = 'border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem 1rem;background:#fafafa';
+              div.innerHTML = `
+                <div style="display:flex;align-items:flex-start;gap:0.5rem">
+                  <div style="flex:1">
+                    <div class="qa-q" contenteditable="false"
+                         style="font-weight:600;font-size:0.87rem;color:var(--text);margin-bottom:0.35rem;cursor:text;border-radius:4px;padding:2px 4px">${escHtml(q)}</div>
+                    <div class="qa-a" contenteditable="false"
+                         style="font-size:0.85rem;color:var(--text-2);white-space:pre-wrap;cursor:text;border-radius:4px;padding:2px 4px">${escHtml(a)}</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+                    <button class="btn-qa-edit" onclick="qaEdit(this)" title="Edit"
+                            style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:0.75rem;cursor:pointer;color:var(--brand-mid)">Edit</button>
+                    <button class="btn-qa-del" onclick="qaDelete(this)" title="Delete"
+                            style="background:none;border:1px solid #f0c0c0;border-radius:4px;padding:3px 8px;font-size:0.75rem;cursor:pointer;color:#c00">Del</button>
+                  </div>
+                </div>
+                <div class="qa-save-row" style="display:none;margin-top:0.5rem;gap:0.4rem;justify-content:flex-end">
+                  <button onclick="qaSave(this)" style="background:var(--green);color:white;border:none;border-radius:4px;padding:4px 12px;font-size:0.8rem;cursor:pointer">Save</button>
+                  <button onclick="qaCancel(this)" style="background:none;border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:0.8rem;cursor:pointer">Cancel</button>
+                </div>`;
+              list.appendChild(div);
+              setTimeout(() => { status.textContent = ''; }, 2500);
+            } else {
+              status.style.color = '#c00';
+              status.textContent = data.error || 'Error saving.';
+            }
+          }).catch(() => { status.style.color='#c00'; status.textContent='Network error.'; });
+        }
+
+        function escHtml(s) {
+          return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+        </script>
+
+        </div><!-- end qa-bank-card -->
+        </div><!-- end tab-qa -->
+
+        <script>
+        // ── Tab switching ─────────────────────────────────────────────────────
+        function showTab(name) {
+          ['profile','qa'].forEach(t => {
+            document.getElementById('tab-' + t).style.display = (t === name) ? '' : 'none';
+            document.getElementById('tab-btn-' + t).classList.toggle('active', t === name);
+          });
+        }
+
+        // ── EEO / demographics save ───────────────────────────────────────────
+        // Pre-populate from server-rendered profile values
+        (function() {
+          const vals = {
+            'eeo-gender':   '{{ profile.get("eeo_gender","") | e }}',
+            'eeo-race':     '{{ profile.get("eeo_race","") | e }}',
+            'eeo-veteran':  '{{ profile.get("eeo_veteran","") | e }}',
+            'eeo-disability': '{{ profile.get("eeo_disability","") | e }}',
+          };
+          for (const [id, val] of Object.entries(vals)) {
+            const el = document.getElementById(id);
+            if (el && val) el.value = val;
+          }
+        })();
+
+        function saveEEO() {
+          const btn = document.getElementById('eeo-save-btn');
+          const status = document.getElementById('eeo-status');
+          btn.disabled = true;
+          btn.textContent = 'Saving\u2026';
+          fetch('/api/autofill-profile', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              eeo_gender:     document.getElementById('eeo-gender').value,
+              eeo_race:       document.getElementById('eeo-race').value,
+              eeo_veteran:    document.getElementById('eeo-veteran').value,
+              eeo_disability: document.getElementById('eeo-disability').value,
+            })
+          }).then(r => r.json()).then(d => {
+            status.textContent = d.ok ? 'Saved!' : 'Error saving.';
+            status.style.color = d.ok ? 'var(--green)' : '#c00';
+            btn.disabled = false;
+            btn.textContent = 'Save Demographics';
+            setTimeout(() => { status.textContent = ''; }, 2500);
+          }).catch(() => {
+            status.textContent = 'Network error.';
+            status.style.color = '#c00';
+            btn.disabled = false;
+            btn.textContent = 'Save Demographics';
+          });
+        }
+        </script>
+
       </div>
 
       <!-- ── Right: Find Jobs CTA + stats ── -->
       <div class="col-side">
 
+        {% if scored_count %}
+        <a href="/browse-saved-jobs" style="display:block;background:#1a5c2a;border-radius:var(--radius);
+           padding:1.1rem 1.4rem;color:white;text-decoration:none;margin-bottom:0.9rem;
+           border:2px solid #2a8a40;transition:background 0.15s"
+           onmouseover="this.style.background='#155020'" onmouseout="this.style.background='#1a5c2a'">
+          <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;
+                      color:rgba(255,255,255,0.6);margin-bottom:0.3rem">Instant &mdash; no search needed</div>
+          <div style="font-size:1rem;font-weight:700;margin-bottom:0.3rem">Browse Saved Jobs</div>
+          <div style="font-size:0.84rem;color:rgba(255,255,255,0.8)">
+            {{ scored_count }} job{{ 's' if scored_count != 1 else '' }} already scored &amp; ready
+          </div>
+        </a>
+        {% endif %}
+
         <div class="find-jobs-card">
-          <div class="step-label-cta">Step 3 &mdash; when ready</div>
-          <h2>Find Matching Jobs</h2>
-          <p>AI searches Indeed, Dice, Greenhouse, Lever, Workday, Ashby and 400+ more sources, then ranks results by skills fit, salary, and location. Takes about 60–90 seconds.</p>
+          <div class="step-label-cta">Step 3 &mdash; find new jobs</div>
+          <h2>Search for Jobs</h2>
+          <p>Searches 400+ boards &amp; ATS sources, AI-scores them against your resume, and shows your best matches.{% if scored_count %} Only <em>new</em> jobs get scored — saved ones load instantly.{% endif %}</p>
 
           {% if resume %}
-            <a href="/find-matches" class="btn-find">Find Matching Jobs &rarr;</a>
+            <a href="/find-matches" class="btn-find">Search for New Jobs &rarr;</a>
             <div class="requires-resume" style="margin-top:0.75rem">
               <div class="req-dot done"></div>
               Resume uploaded &mdash; you're ready to search
             </div>
           {% else %}
-            <a href="#" class="btn-find disabled">Find Matching Jobs &rarr;</a>
+            <a href="#" class="btn-find disabled">Search for New Jobs &rarr;</a>
             <div class="requires-resume">
               <div class="req-dot"></div>
               Upload a resume above first (Step 1)

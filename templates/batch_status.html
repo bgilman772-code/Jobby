@@ -101,12 +101,19 @@
         <div class="current-sub" id="cur-sub"></div>
         <div class="status-msg" id="cur-status-msg"></div>
         <ul class="fields-list" id="cur-fields"></ul>
+        <div style="margin:0.5rem 0" id="focus-hint" style="display:none">
+          <button style="padding:7px 16px;background:#1a3a6a;color:white;border:none;border-radius:5px;
+                         cursor:pointer;font-size:0.88rem;font-weight:600"
+                  onclick="tryFocusBrowser()">
+            &#128196; Switch to Chrome Window
+          </button>
+        </div>
         <div class="confirm-btns" id="login-btns" style="display:none">
           <button class="btn-confirm" onclick="loginDone()">&#128275; I&apos;ve logged in &mdash; Continue</button>
           <button class="btn-skip"    onclick="skipJob()">Skip this job</button>
         </div>
         <div class="confirm-btns" id="cur-btns" style="display:none">
-          <button class="btn-confirm" onclick="confirmJob()">Confirm &amp; Submit</button>
+          <button class="btn-confirm" onclick="confirmJob()">&#10003; Confirm &amp; Submit</button>
           <button class="btn-skip"    onclick="skipJob()">Skip this job</button>
         </div>
       </div>
@@ -161,6 +168,14 @@
         skipped:               's-skipped',
         error:                 's-error',
       };
+
+      function tryFocusBrowser() {
+        try {
+          const w = window.open('about:blank', '_blank', 'width=1,height=1');
+          if (w) { setTimeout(() => w.close(), 200); }
+        } catch(e) {}
+        window.focus();
+      }
 
       function loginDone() {
         if (currentIdx < 0) return;
@@ -268,8 +283,11 @@
 
               const loginBtns = document.getElementById('login-btns');
               const btns = document.getElementById('cur-btns');
+              const focusHint = document.getElementById('focus-hint');
+              const needsAction = ['awaiting_login','awaiting_confirmation','navigating','filling'].includes(cur.status);
               loginBtns.style.display = cur.status === 'awaiting_login' ? 'flex' : 'none';
               btns.style.display = cur.status === 'awaiting_confirmation' ? 'flex' : 'none';
+              focusHint.style.display = needsAction ? 'block' : 'none';
             } else {
               curBox.style.display = 'none';
             }

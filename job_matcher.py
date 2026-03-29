@@ -1,6 +1,7 @@
 import re
 import os
 import json
+from datetime import datetime, timezone, timedelta
 from google import genai
 
 # Cities and keywords within ~1 hour drive of Washington DC
@@ -39,21 +40,28 @@ def _strip_html(text: str) -> str:
     return re.sub(r'<[^>]+>', ' ', text)
 
 
-# Words that must appear near a dollar amount for it to be treated as salary
+# Words that must appear CLOSE to a dollar amount for it to be treated as salary.
+# Require very explicit compensation language — not generic financial words.
 _SALARY_CONTEXT = re.compile(
-    r'salary|compensation|comp|base pay|base salary|annual|per year|per annum'
-    r'|/year|/yr|\bpay\b|ote\b|total comp|remuneration|wage|stipend'
-    r'|earning|income|\brate\b',
+    r'\bsalary\b|\bsalaries\b|base pay|base salary|base compensation'
+    r'|total comp|total compensation|\bcompensation\b|\bcomp\b'
+    r'|annual pay|annual salary|per year|per annum|/year|/yr'
+    r'|\bwage\b|\bstipend\b|ote\b|on-target|target compensation'
+    r'|pay range|salary range|compensation range|pay band',
     re.I
 )
 
-# Patterns that look like numbers but are NOT salaries (filter these out)
+# Patterns that look like dollar amounts but are NOT salaries — scrub before matching
 _NON_SALARY_PATTERNS = re.compile(
-    r'401\s*\(?\s*k\s*\)?'          # 401(k) retirement plan
-    r'|section\s*\d+'               # Section 401, etc.
-    r'|\d+\s*(?:employee|people|person|candidate|team|member)'  # headcount
-    r'|\d+\s*(?:day|week|month|hour|hr\b)'                      # durations / hourly
-    r'|\d+\s*(?:sq\.?\s*ft|square)',                             # office size
+    r'401\s*\(?\s*k\s*\)?'                                         # 401(k)
+    r'|section\s*\d+'                                              # Section 401
+    r'|\d+\s*(?:employee|people|person|candidate|team|member)'     # headcount
+    r'|\d+\s*(?:day|week|month|hour|hr\b)'                         # durations/hourly
+    r'|\d+\s*(?:sq\.?\s*ft|square)'                                # office size
+    r'|(?:budget|grant|raise[sd]?|fund(?:ing|ed)?|invest(?:ment|ed)?'
+    r'|revenue|donation|endowment|award|contract|loan|valuat)'     # financial sums
+    r'\s+(?:of\s+)?\$?\d'                                          #   followed by number
+    r'|\$\d[\d,]*\s*(?:million|billion|M\b|B\b)',                  # large round sums
     re.I
 )
 
@@ -151,8 +159,9 @@ def _extract_salary_from_description(desc: str):
         # Group 6 (bare large number) always needs context.
         needs_context = m.group(4) is None and m.group(5) is None
         if needs_context:
-            start = max(0, m.start() - 200)
-            end   = min(len(text_clean), m.end() + 200)
+            # Tight 80-char window: salary context must be right next to the number
+            start = max(0, m.start() - 80)
+            end   = min(len(text_clean), m.end() + 80)
             window = text_clean[start:end]
             if not _SALARY_CONTEXT.search(window):
                 continue
@@ -165,19 +174,26 @@ def _extract_salary_from_description(desc: str):
 
 
 def _passes_salary(job: dict) -> bool:
-    # Try explicit salary field first
+    # Try description extraction first — it's more reliable than aggregator salary fields
+    desc_min, desc_max = _extract_salary_from_description(
+        job.get('description') or job.get('contents') or ''
+    )
+    if desc_max is not None:
+        # Use description salary — overwrite any inaccurate aggregator field
+        sal_str = (f'${int(desc_min):,}–${int(desc_max):,}/yr'
+                   if desc_min and desc_min != desc_max
+                   else f'${int(desc_max):,}/yr')
+        job['salary'] = sal_str
+        job['salary_max'] = int(desc_max)
+        return desc_max >= 100_000
+
+    # Fall back to explicit salary field from the job source
     _, max_s = parse_salary(job.get('salary') or '')
-    # Fall back to scanning the description
-    if max_s is None:
-        _, max_s = _extract_salary_from_description(
-            job.get('description') or job.get('contents') or ''
-        )
-        if max_s is not None:
-            # Cache it back onto the job so ranker/UI can display it
-            job['salary'] = f'~${int(max_s):,}/yr (est. from description)'
-    if max_s is None:
-        return False  # No salary found anywhere → exclude
-    return max_s >= 100_000
+    if max_s is not None:
+        job['salary_max'] = int(max_s)
+        return max_s >= 100_000
+
+    return False  # No salary found → exclude
 
 
 # Regions that explicitly exclude US candidates
@@ -506,7 +522,7 @@ def estimate_salaries_from_comparables(jobs: list) -> None:
                 job['salary'] = f'~${med:,}/yr (est. from comparable roles at {job.get("company") or job.get("company_name", "")})'
                 continue
 
-        # Priority 3: same title bucket, any company
+        # Priority 3: same title bucket, any company in batch
         if bucket:
             bkt_sals = bucket_salaries.get(bucket, [])
             if bkt_sals:
@@ -514,9 +530,54 @@ def estimate_salaries_from_comparables(jobs: list) -> None:
                 job['salary'] = f'~${med:,}/yr (est. from comparable {bucket} roles)'
                 continue
 
+        # Priority 4: market-rate median by title bucket (2024 US remote tech benchmarks)
+        _MARKET_MEDIANS = {
+            'principal engineer': 220_000, 'staff engineer': 210_000,
+            'senior staff': 215_000,
+            'engineering manager': 200_000, 'director of engineering': 230_000,
+            'vp of engineering': 270_000,
+            'machine learning': 180_000, 'ml engineer': 175_000, 'ai engineer': 175_000,
+            'data scientist': 155_000, 'data engineer': 155_000,
+            'analytics engineer': 145_000, 'data analyst': 125_000,
+            'software engineer': 160_000, 'backend engineer': 160_000,
+            'frontend engineer': 145_000, 'full stack': 155_000, 'fullstack': 155_000,
+            'devops': 160_000, 'sre': 165_000, 'platform engineer': 165_000,
+            'cloud engineer': 160_000, 'infrastructure engineer': 155_000,
+            'security engineer': 170_000,
+            'product manager': 170_000, 'program manager': 150_000,
+            'project manager': 130_000,
+            'business intelligence': 130_000, 'bi developer': 130_000,
+            'bi engineer': 135_000,
+            'database': 130_000, 'sql developer': 125_000, 'data warehouse': 140_000,
+        }
+        if bucket and bucket in _MARKET_MEDIANS:
+            med = _MARKET_MEDIANS[bucket]
+            job['salary'] = f'~${med:,}/yr (est. market rate for {bucket} roles)'
+            continue
 
-def apply_filters(jobs: list, min_salary: int = 100_000) -> list:
-    """Filter to tech roles only, with salary >= min_salary and US location."""
+
+def _parse_date(date_str: str):
+    """Parse a date string into a timezone-aware datetime, or None on failure."""
+    if not date_str:
+        return None
+    for fmt in ('%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S',
+                '%Y-%m-%d', '%m/%d/%Y', '%d %b %Y', '%B %d, %Y'):
+        try:
+            dt = datetime.strptime(date_str[:26].strip(), fmt)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt
+        except ValueError:
+            continue
+    return None
+
+
+def apply_filters(jobs: list, min_salary: int = 100_000, max_age_days: int = 30) -> list:
+    """Filter to tech roles only, with salary >= min_salary and US location.
+    Jobs posted more than max_age_days ago are excluded; jobs with no date pass through.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days) if max_age_days > 0 else None
+
     def _salary_ok(job):
         if min_salary <= 0:
             return True
@@ -530,7 +591,17 @@ def apply_filters(jobs: list, min_salary: int = 100_000) -> list:
         if max_s is None:
             return True  # No salary listed — pass through, don't penalise
         return max_s >= min_salary
-    return [j for j in jobs if _passes_tech_role(j) and _salary_ok(j) and _passes_location(j)]
+
+    def _date_ok(job):
+        if cutoff is None:
+            return True
+        dt = _parse_date(job.get('date_posted') or '')
+        if dt is None:
+            return True   # No date — always pass through (not a dealbreaker)
+        return dt >= cutoff
+
+    return [j for j in jobs
+            if _passes_tech_role(j) and _salary_ok(j) and _passes_location(j) and _date_ok(j)]
 
 
 # Job categories used throughout the app
@@ -613,12 +684,49 @@ def _score_batch(client, batch: list, batch_offset: int,
             job['match_reason'] = r.get('reason', '')
             job['category'] = r.get('category', 'Other')
             job['political_tech'] = bool(r.get('political_tech', False))
-    except Exception:
+    except Exception as _e:
+        _gemini_error = str(_e)
         for job in batch:
             job.setdefault('match_score', 5)
             job.setdefault('match_reason', '')
             job.setdefault('category', 'Other')
             job.setdefault('political_tech', False)
+            job['_gemini_error'] = _gemini_error
+
+
+_MAX_JOBS_PER_COMPANY = 8   # cap per company to prevent one source dominating
+
+
+def _diversify(jobs: list, max_per_company: int, total: int) -> list:
+    """Return up to `total` jobs with at most `max_per_company` per company.
+
+    Uses round-robin across companies so no single source dominates.
+    """
+    from collections import defaultdict
+    buckets: dict = defaultdict(list)
+    for j in jobs:
+        company = (j.get('company_name') or j.get('company') or '').strip().lower()
+        if len(buckets[company]) < max_per_company:
+            buckets[company].append(j)
+
+    out = []
+    # Round-robin: one job per company each pass until total reached
+    companies = list(buckets.keys())
+    indices = {c: 0 for c in companies}
+    while len(out) < total:
+        added_this_pass = False
+        for company in companies:
+            if len(out) >= total:
+                break
+            idx = indices[company]
+            bucket = buckets[company]
+            if idx < len(bucket):
+                out.append(bucket[idx])
+                indices[company] += 1
+                added_this_pass = True
+        if not added_this_pass:
+            break
+    return out
 
 
 def score_and_categorize_jobs(jobs: list, resume_profile: dict) -> list:
@@ -637,7 +745,7 @@ def score_and_categorize_jobs(jobs: list, resume_profile: dict) -> list:
     )
     cats = ', '.join(CATEGORIES)
 
-    jobs_to_score = jobs[:_MAX_JOBS_TO_SCORE]
+    jobs_to_score = _diversify(jobs, _MAX_JOBS_PER_COMPANY, _MAX_JOBS_TO_SCORE)
 
     # Score in batches to stay within Gemini token limits
     for offset in range(0, len(jobs_to_score), _SCORE_BATCH_SIZE):

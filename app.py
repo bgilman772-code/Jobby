@@ -21,7 +21,7 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from resume_parser import extract_text, analyze_resume
-from job_matcher import apply_filters, score_and_categorize_jobs, CATEGORIES, estimate_salaries_from_comparables
+from job_matcher import apply_filters, score_and_categorize_jobs, CATEGORIES, estimate_salaries_from_comparables, is_us_eligible
 from job_ranker import rank_jobs
 from cover_letter_generator import tailor_cover_letter, generate_resume_feedback
 from auto_filler import PENDING_APPLICATIONS, start_fill
@@ -116,6 +116,10 @@ def get_parsed_profile_path(user_id=None) -> str:
 def get_resume_text_path(user_id=None) -> str:
     return os.path.join(get_user_upload_folder(user_id), 'resume_text.txt')
 
+
+def get_qa_bank_path(user_id=None) -> str:
+    return os.path.join(get_user_upload_folder(user_id), 'qa_bank.json')
+
 DEFAULT_TEMPLATE = (
     "Dear {company},\n\n"
     "I am writing to apply for the {title} role. {intro}\n\n"
@@ -173,6 +177,32 @@ def init_db():
             qualification_tier TEXT DEFAULT ''
         )
     ''')
+    # Seen jobs table — tracks which job URLs each user has already been shown
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS seen_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            job_url TEXT NOT NULL,
+            first_seen_at TEXT NOT NULL
+        )
+    ''')
+    c.execute('CREATE UNIQUE INDEX IF NOT EXISTS seen_jobs_idx ON seen_jobs(user_id, job_url)')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS scored_jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            url TEXT NOT NULL,
+            title TEXT, company TEXT, location TEXT, remote INTEGER DEFAULT 0,
+            salary TEXT, salary_max INTEGER DEFAULT 0, date_posted TEXT, source TEXT,
+            description TEXT, match_score INTEGER DEFAULT 5, ranking_score INTEGER DEFAULT 0,
+            category TEXT DEFAULT 'Other', political_tech INTEGER DEFAULT 0,
+            qualification_tier TEXT DEFAULT 'Qualified', is_remote INTEGER DEFAULT 0,
+            is_dc_metro INTEGER DEFAULT 0, pay_score INTEGER DEFAULT 0,
+            skills_score INTEGER DEFAULT 0, match_reason TEXT DEFAULT '',
+            scored_at TEXT NOT NULL, raw_json TEXT
+        )
+    ''')
+    c.execute('CREATE UNIQUE INDEX IF NOT EXISTS scored_jobs_idx ON scored_jobs(user_id, url)')
     # Migrations for existing DBs
     for col_def in [
         'ALTER TABLE applications ADD COLUMN qualification_tier TEXT DEFAULT ""',
@@ -184,6 +214,140 @@ def init_db():
             pass
     conn.commit()
     conn.close()
+
+
+def save_scored_jobs(jobs: list, user_id: int):
+    if not jobs or not user_id:
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    for j in jobs:
+        url = j.get('url', '')
+        if not url:
+            continue
+        c.execute('''
+            INSERT INTO scored_jobs
+              (user_id, url, title, company, location, remote, salary, salary_max,
+               date_posted, source, description, match_score, ranking_score, category,
+               political_tech, qualification_tier, is_remote, is_dc_metro,
+               pay_score, skills_score, match_reason, scored_at, raw_json)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(user_id, url) DO UPDATE SET
+              match_score=excluded.match_score, ranking_score=excluded.ranking_score,
+              category=excluded.category, political_tech=excluded.political_tech,
+              qualification_tier=excluded.qualification_tier, is_remote=excluded.is_remote,
+              is_dc_metro=excluded.is_dc_metro, pay_score=excluded.pay_score,
+              skills_score=excluded.skills_score, match_reason=excluded.match_reason,
+              salary=excluded.salary, salary_max=excluded.salary_max,
+              scored_at=excluded.scored_at, raw_json=excluded.raw_json
+        ''', (
+            user_id, url,
+            j.get('title', ''),
+            j.get('company_name') or j.get('company', ''),
+            j.get('location', ''),
+            1 if j.get('remote') else 0,
+            j.get('salary', ''),
+            int(j.get('salary_max') or 0),
+            j.get('date_posted', ''),
+            j.get('source', ''),
+            (j.get('description') or '')[:2000],
+            int(j.get('match_score') or 5),
+            int(j.get('ranking_score') or 0),
+            j.get('category', 'Other'),
+            1 if j.get('political_tech') else 0,
+            j.get('qualification_tier', 'Qualified'),
+            1 if j.get('is_remote') else 0,
+            1 if j.get('is_dc_metro') else 0,
+            int(j.get('pay_score') or 0),
+            int(j.get('skills_score') or 0),
+            j.get('match_reason', ''),
+            now,
+            json.dumps({k: v for k, v in j.items()
+                        if k not in ('description',) and not k.startswith('_')}),
+        ))
+    conn.commit()
+    conn.close()
+
+
+def load_scored_jobs(user_id: int, limit: int = 600) -> list:
+    if not user_id:
+        return []
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        SELECT url, title, company, location, remote, salary, salary_max,
+               date_posted, source, description, match_score, ranking_score,
+               category, political_tech, qualification_tier, is_remote, is_dc_metro,
+               pay_score, skills_score, match_reason, scored_at, raw_json
+        FROM scored_jobs WHERE user_id=?
+        ORDER BY ranking_score DESC, scored_at DESC LIMIT ?
+    ''', (user_id, limit))
+    rows = c.fetchall()
+    conn.close()
+    cols = ['url', 'title', 'company', 'location', 'remote', 'salary', 'salary_max',
+            'date_posted', 'source', 'description', 'match_score', 'ranking_score',
+            'category', 'political_tech', 'qualification_tier', 'is_remote', 'is_dc_metro',
+            'pay_score', 'skills_score', 'match_reason', 'scored_at', 'raw_json']
+    out = []
+    for row in rows:
+        j = dict(zip(cols, row))
+        try:
+            extra = json.loads(j.pop('raw_json') or '{}')
+            extra.update(j)
+            j = extra
+        except Exception:
+            j.pop('raw_json', None)
+        j['company_name'] = j.get('company', '')
+        j['remote']         = bool(j.get('remote'))
+        j['political_tech'] = bool(j.get('political_tech'))
+        j['is_remote']      = bool(j.get('is_remote'))
+        j['is_dc_metro']    = bool(j.get('is_dc_metro'))
+        out.append(j)
+    return out
+
+
+def count_scored_jobs(user_id: int) -> int:
+    if not user_id:
+        return 0
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT COUNT(*) FROM scored_jobs WHERE user_id=?', (user_id,))
+    n = c.fetchone()[0]
+    conn.close()
+    return n
+
+
+def get_seen_job_urls(user_id: int) -> set:
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT job_url FROM seen_jobs WHERE user_id=?', (user_id,))
+    urls = {row[0] for row in c.fetchall()}
+    conn.close()
+    return urls
+
+
+def save_seen_jobs(user_id: int, urls: list):
+    if not urls:
+        return
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    now = datetime.now(timezone.utc).isoformat()
+    c.executemany(
+        'INSERT OR IGNORE INTO seen_jobs (user_id, job_url, first_seen_at) VALUES (?,?,?)',
+        [(user_id, url, now) for url in urls if url]
+    )
+    conn.commit()
+    conn.close()
+
+
+def clear_seen_jobs(user_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('DELETE FROM seen_jobs WHERE user_id=?', (user_id,))
+    conn.commit()
+    conn.close()
+
 
 
 init_db()
@@ -290,6 +454,15 @@ def register():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+
+@app.route('/clear-seen-jobs', methods=['POST'])
+def clear_seen_jobs_route():
+    user_id = _current_user_id()
+    if user_id:
+        clear_seen_jobs(user_id)
+        flash('Seen jobs history cleared — all jobs will appear as new next search.')
+    return redirect(request.referrer or url_for('index'))
 
 
 def query_jobs(filters: dict):
@@ -417,6 +590,26 @@ def save_parsed_profile(data: dict, user_id=None):
     path = get_parsed_profile_path(user_id or _current_user_id())
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f)
+
+
+def load_qa_bank(user_id=None) -> list:
+    """Return list of {question, answer} dicts from qa_bank.json."""
+    path = get_qa_bank_path(user_id or _current_user_id())
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            if isinstance(data, list):
+                return data
+        except Exception:
+            pass
+    return []
+
+
+def save_qa_bank(bank: list, user_id=None):
+    path = get_qa_bank_path(user_id or _current_user_id())
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(bank, f, ensure_ascii=False, indent=2)
 
 
 def load_resume_text(user_id=None) -> str:
@@ -553,14 +746,38 @@ def _run_match_task(task_id: str, search_settings: dict = None, user_id=None):
             }
             return
 
+        MATCH_TASKS[task_id]['status'] = 'validating'
+        filtered = _filter_dead_urls(filtered)
+        if not filtered:
+            MATCH_TASKS[task_id] = {
+                'status': 'error',
+                'error': 'All job links were dead or expired. Try a new search.'
+            }
+            return
+
         MATCH_TASKS[task_id]['status'] = 'scoring'
         # If the user toggled specific skills on the settings page, use those for scoring
         selected_skills = settings.get('selected_skills') or []
         if selected_skills:
             parsed = dict(parsed)
             parsed['skills'] = selected_skills
-        scored = score_and_categorize_jobs(filtered, parsed)
-        ranked = rank_jobs(scored)
+
+        previously_scored = {j['url']: j for j in load_scored_jobs(user_id)} if user_id else {}
+        new_filtered = [j for j in filtered if j.get('url', '') not in previously_scored]
+        old_reused   = [previously_scored[j['url']] for j in filtered
+                        if j.get('url', '') in previously_scored]
+        new_scored = score_and_categorize_jobs(new_filtered, parsed) if new_filtered else []
+        if new_scored and user_id:
+            save_scored_jobs(new_scored, user_id)
+        ranked = rank_jobs(new_scored + old_reused, priority_companies=watchlist)
+
+        # Mark which jobs the user has already been shown in a previous search
+        seen_urls = get_seen_job_urls(user_id) if user_id else set()
+        for job in ranked:
+            job['_is_new'] = job.get('url', '') not in seen_urls
+
+        # Persist all shown job URLs so they're flagged as "seen" next time
+        save_seen_jobs(user_id, [j.get('url', '') for j in ranked]) if user_id else None
 
         cache_key = str(uuid.uuid4())
         JOB_CACHE[cache_key] = ranked
@@ -570,6 +787,7 @@ def _run_match_task(task_id: str, search_settings: dict = None, user_id=None):
             'cache_key': cache_key,
             'profile': parsed,
             'count': len(ranked),
+            'new_count': len(new_scored),
         }
     except Exception as e:
         MATCH_TASKS[task_id] = {'status': 'error', 'error': str(e)}
@@ -591,8 +809,9 @@ def _run_batch(batch_id: str, profile: dict, resume_path: str):
         app_id = f"{batch_id}_{i}"
         start_fill(app_id, job_url, profile, resume_path)
         # Wait until user confirms/cancels/errors this job before opening the next browser
-        entry = PENDING_APPLICATIONS.get(app_id, {})
-        entry.get('completion_event', threading.Event()).wait(timeout=3600)
+        entry = PENDING_APPLICATIONS.get(app_id)
+        if entry:
+            entry['completion_event'].wait(timeout=1800)
         final_status = PENDING_APPLICATIONS.get(app_id, {}).get('status', 'error')
         batch_session['statuses'][i] = final_status
         # Save submitted jobs to the applications tracker
@@ -621,8 +840,9 @@ def _run_batch_quick(batch_id: str, profile: dict, resume_path: str, max_concurr
         sem.acquire()
         try:
             start_fill(app_id, job_url, profile, resume_path, headless=True)
-            entry = PENDING_APPLICATIONS.get(app_id, {})
-            entry.get('completion_event', threading.Event()).wait(timeout=300)
+            entry = PENDING_APPLICATIONS.get(app_id)
+            if entry:
+                entry['completion_event'].wait(timeout=300)
         finally:
             sem.release()
         final_status = PENDING_APPLICATIONS.get(app_id, {}).get('status', 'error')
@@ -663,8 +883,12 @@ def index():
         conn.close()
     except Exception:
         pass
+    scored_count = count_scored_jobs(user_id)
+    qa_bank = load_qa_bank(user_id)
     return render_template('index.html', profile=profile, resume=resume,
                            template=template, app_counts=app_counts,
+                           scored_count=scored_count,
+                           qa_bank=qa_bank,
                            username=session.get('username', ''))
 
 
@@ -678,9 +902,16 @@ def upload():
         'skills':          request.form.get('skills', '').strip(),
         'linkedin':        request.form.get('linkedin', '').strip(),
         'website':         request.form.get('website', '').strip(),
+        'github':          request.form.get('github', '').strip(),
         'city':            request.form.get('city', '').strip(),
-        'ideal_position':  request.form.get('ideal_position', '').strip(),
     }
+    # Preserve fields not managed by this form (e.g. work_auth, sponsorship saved elsewhere)
+    existing = load_profile()
+    for k in ('work_auth', 'sponsorship', 'salary_expectation', 'start_date', 'referral',
+              'cover_letter', 'search_queries', 'target_roles', 'bio', 'summary',
+              'eeo_gender', 'eeo_race', 'eeo_veteran', 'eeo_disability'):
+        if k in existing and k not in profile:
+            profile[k] = existing[k]
     save_profile(profile)
 
     user_id = _current_user_id()
@@ -969,7 +1200,204 @@ def match_status(task_id):
     if task.get('status') == 'done':
         resp['redirect'] = url_for('match_results', key=task['cache_key'])
         resp['count'] = task.get('count', 0)
+        resp['new_count'] = task.get('new_count', 0)
     return jsonify(resp)
+
+
+def _filter_dead_urls(jobs: list) -> list:
+    """Remove jobs whose URLs are dead. Runs concurrently with up to 20 threads."""
+    if not jobs:
+        return jobs
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    results = {}
+    with ThreadPoolExecutor(max_workers=20) as pool:
+        futures = {pool.submit(_is_job_url_alive, j.get('url', '')): j for j in jobs}
+        for fut in as_completed(futures):
+            job = futures[fut]
+            try:
+                alive = fut.result()
+            except Exception:
+                alive = True
+            results[id(job)] = alive
+    return [j for j in jobs if results.get(id(j), True)]
+
+
+def _is_job_url_alive(url: str) -> bool:
+    """Return True if the URL resolves to a live job posting."""
+    if not url:
+        return False
+    dead_signals = [
+        'job is no longer available', 'position has been filled',
+        'job has been closed', 'posting is no longer active',
+        'this job has expired', 'no longer accepting applications',
+        'job listing is no longer available', 'requisition is no longer',
+    ]
+    try:
+        import requests as _req
+        r = _req.get(url, timeout=8, allow_redirects=True,
+                     headers={'User-Agent': 'Mozilla/5.0'})
+        if r.status_code in (404, 410):
+            return False
+        text = r.text.lower()
+        if any(s in text for s in dead_signals):
+            return False
+        return True
+    except Exception:
+        return True  # Network error ≠ dead posting; keep it
+
+
+def purge_dead_saved_jobs(user_id: int) -> int:
+    """Check all saved job URLs concurrently and delete dead ones. Returns count removed."""
+    jobs = load_scored_jobs(user_id)
+    if not jobs:
+        return 0
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    dead_urls = []
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        futures = {pool.submit(_is_job_url_alive, j['url']): j['url'] for j in jobs if j.get('url')}
+        for fut in as_completed(futures):
+            url = futures[fut]
+            try:
+                alive = fut.result()
+            except Exception:
+                alive = True
+            if not alive:
+                dead_urls.append(url)
+    if dead_urls:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.executemany('DELETE FROM scored_jobs WHERE user_id=? AND url=?',
+                      [(user_id, u) for u in dead_urls])
+        conn.commit()
+        conn.close()
+    return len(dead_urls)
+
+
+@app.route('/api/autofill-profile', methods=['POST'])
+def api_autofill_profile():
+    """Save autofill-specific profile fields (work auth, EEO, salary, etc.) via AJAX."""
+    user_id = _current_user_id()
+    data = request.get_json(force=True)
+    profile = load_profile(user_id)
+    autofill_fields = (
+        'work_auth', 'sponsorship', 'salary_expectation', 'start_date', 'referral',
+        'eeo_gender', 'eeo_race', 'eeo_veteran', 'eeo_disability',
+    )
+    for field in autofill_fields:
+        if field in data:
+            profile[field] = data[field]
+    save_profile(profile, user_id)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/qa-bank', methods=['GET'])
+def api_qa_bank_get():
+    """Return the user's Q&A bank as JSON."""
+    return jsonify(load_qa_bank(_current_user_id()))
+
+
+@app.route('/api/qa-bank', methods=['POST'])
+def api_qa_bank_save():
+    """
+    Replace or upsert a Q&A entry.
+    Body: {question, answer, index?}
+      - If index is provided, update that entry in place.
+      - Otherwise upsert: update matching question or append new.
+    """
+    user_id = _current_user_id()
+    data = request.get_json(force=True)
+    question = (data.get('question') or '').strip()
+    answer   = (data.get('answer')   or '').strip()
+    idx      = data.get('index')       # optional integer
+
+    if not question:
+        return jsonify({'error': 'question is required'}), 400
+
+    bank = load_qa_bank(user_id)
+
+    if idx is not None and 0 <= int(idx) < len(bank):
+        bank[int(idx)] = {'question': question, 'answer': answer}
+    else:
+        # Check for an existing entry with the same question (case-insensitive)
+        q_lower = question.lower()
+        match = next((i for i, e in enumerate(bank)
+                      if e.get('question', '').lower() == q_lower), None)
+        if match is not None:
+            bank[match] = {'question': question, 'answer': answer}
+        else:
+            bank.append({'question': question, 'answer': answer})
+
+    save_qa_bank(bank, user_id)
+    return jsonify({'ok': True, 'count': len(bank)})
+
+
+@app.route('/api/qa-bank/delete', methods=['POST'])
+def api_qa_bank_delete():
+    """Remove a Q&A entry by index. Body: {index}"""
+    user_id = _current_user_id()
+    data = request.get_json(force=True)
+    idx  = data.get('index')
+    bank = load_qa_bank(user_id)
+    if idx is None or int(idx) < 0 or int(idx) >= len(bank):
+        return jsonify({'error': 'invalid index'}), 400
+    bank.pop(int(idx))
+    save_qa_bank(bank, user_id)
+    return jsonify({'ok': True, 'count': len(bank)})
+
+
+@app.route('/api/save-jobs', methods=['POST'])
+def api_save_jobs():
+    """Save selected jobs to the applications tracker. Body: {cache_key, indices: [...]}"""
+    user_id = _current_user_id()
+    data = request.get_json(force=True)
+    cache_key = data.get('cache_key', '')
+    indices = data.get('indices', [])
+    jobs = JOB_CACHE.get(cache_key, [])
+    saved = 0
+    for idx in indices:
+        try:
+            idx = int(idx)
+            if 0 <= idx < len(jobs):
+                save_application_record(jobs[idx], status='saved', user_id=user_id)
+                saved += 1
+        except Exception:
+            pass
+    return jsonify({'ok': True, 'saved': saved})
+
+
+@app.route('/purge-dead-jobs', methods=['POST'])
+def purge_dead_jobs():
+    user_id = _current_user_id()
+    removed = purge_dead_saved_jobs(user_id)
+    flash(f'Removed {removed} dead job link{"s" if removed != 1 else ""}.')
+    return redirect(url_for('browse_saved_jobs'))
+
+
+@app.route('/browse-saved-jobs')
+def browse_saved_jobs():
+    user_id = _current_user_id()
+    jobs = load_scored_jobs(user_id)
+    if not jobs:
+        flash('No saved jobs yet — run a search first.')
+        return redirect(url_for('index'))
+    from job_ranker import rank_jobs as _rank
+    jobs = _rank(jobs)
+    seen_urls = get_seen_job_urls(user_id) if user_id else set()
+    for i, job in enumerate(jobs):
+        job['_is_new'] = job.get('url', '') not in seen_urls
+        job['_orig_idx'] = i
+        job['_is_us'] = 1 if is_us_eligible(job) else 0
+    cache_key = str(uuid.uuid4())
+    JOB_CACHE[cache_key] = jobs
+    profile = load_parsed_profile(user_id)
+    return render_template(
+        'matched_jobs.html',
+        jobs=jobs, key=cache_key,
+        profile=profile, categories=CATEGORIES,
+        is_saved_view=True,
+        filters={'category': '', 'company': '', 'remote_only': '',
+                 'pol_only': '', 'dc_only': '', 'min_score': 0, 'min_pay': 0},
+    )
 
 
 @app.route('/match-results/<key>')
@@ -1013,6 +1441,7 @@ def match_results(key):
     orig_idx_map = {id(j): i for i, j in enumerate(jobs)}
     for j in filtered:
         j['_orig_idx'] = orig_idx_map.get(id(j), 0)
+        j['_is_us'] = 1 if is_us_eligible(j) else 0
 
     profile = load_parsed_profile()
     return render_template(
@@ -1029,6 +1458,8 @@ def match_results(key):
             'min_pay':    min_pay,
         }
     )
+
+
 
 
 # ── Cover letter ────────────────────────────────────────────────────────────────
@@ -1223,6 +1654,8 @@ def start_apply(cache_key, idx):
         '_job_title':         job.get('title', ''),
         '_company':           job.get('company_name') or job.get('company', ''),
         '_job_description':   (job.get('description') or '')[:3000],
+        # Q&A bank path so auto_filler can read/write it without importing app.py
+        '_qa_bank_path':      get_qa_bank_path(user_id),
     }
 
     app_id = str(uuid.uuid4())
@@ -1280,6 +1713,8 @@ def quick_apply(cache_key, idx):
         '_job_title':       job.get('title', ''),
         '_company':         job.get('company_name') or job.get('company', ''),
         '_job_description': (job.get('description') or '')[:3000],
+        # Q&A bank path so auto_filler can read/write it without importing app.py
+        '_qa_bank_path':    get_qa_bank_path(user_id),
     }
     app_id = str(uuid.uuid4())
 
@@ -1382,6 +1817,24 @@ def cancel_apply(app_id):
     if entry:
         entry['confirmed'] = False
         entry['event'].set()
+    return jsonify({'ok': True})
+
+
+@app.route('/mark-applied/<app_id>', methods=['POST'])
+def mark_applied(app_id):
+    """Record that the user applied manually in the browser (without using the confirm button)."""
+    entry = PENDING_APPLICATIONS.get(app_id)
+    job_url = entry.get('job_url', '') if entry else ''
+    user_id = _current_user_id()
+    if job_url:
+        job = {'url': job_url, 'title': '', 'company_name': ''}
+        for v in JOB_CACHE.values():
+            if isinstance(v, list):
+                for j in v:
+                    if j.get('url') == job_url:
+                        job = j
+                        break
+        save_application_record(job, status='applied', cover_letter='', user_id=user_id)
     return jsonify({'ok': True})
 
 

@@ -37,6 +37,9 @@ Location-anchored
   - Adzuna          (DC metro, requires ADZUNA_APP_ID/KEY)
   - USAJobs         (federal DC roles, requires USAJOBS_API_KEY/EMAIL)
 
+Big Tech direct career APIs
+  - Google, Microsoft, Meta (RSS), Amazon, Apple, Netflix, IBM
+
 Direct career pages (JSON-LD + HTML extraction)
   - Political/civic tech, think tanks, gov-adjacent orgs
 
@@ -57,6 +60,55 @@ from datetime import datetime
 _HEADERS = {'User-Agent': 'Mozilla/5.0 (compatible; JobBot/1.0)'}
 _TIMEOUT = 12          # reduced from 20 — dead endpoints fail faster
 _SHORT_TIMEOUT = 7     # reduced from 10
+
+# ── Login-walled domains ───────────────────────────────────────────────────────
+# Jobs whose apply URL points to one of these require the user to have an
+# account before they can apply.  We filter them out entirely so only
+# direct-to-ATS links (Greenhouse, Lever, Workday, etc.) come through.
+_LOGIN_WALLED_DOMAINS = {
+    'linkedin.com',
+    'indeed.com',
+    'ziprecruiter.com',
+    'glassdoor.com',
+    'monster.com',
+    'careerbuilder.com',
+    'simplyhired.com',
+    'snagajob.com',
+    'lensa.com',
+}
+
+# Domains that are fine even though they look like aggregators
+_ALLOWED_DOMAINS = {
+    'greenhouse.io', 'boards.greenhouse.io',
+    'lever.co',          # direct apply (not account-gated)
+    'ashbyhq.com',
+    'myworkdayjobs.com',
+    'icims.com',
+    'bamboohr.com',
+    'smartrecruiters.com',
+    'careers.google.com',
+    'jobs.careers.microsoft.com',
+    'amazon.jobs',
+    'jobs.apple.com',
+    'jobs.netflix.com',
+    'careers.ibm.com',
+}
+
+
+def _is_login_walled(url: str) -> bool:
+    """Return True if this URL requires a platform account to apply."""
+    if not url:
+        return True
+    try:
+        from urllib.parse import urlparse
+        host = urlparse(url).netloc.lower().lstrip('www.')
+        # Check exact match and subdomain match
+        for domain in _LOGIN_WALLED_DOMAINS:
+            if host == domain or host.endswith('.' + domain):
+                return True
+    except Exception:
+        pass
+    return False
 
 # ── Disk result cache ─────────────────────────────────────────────────────────
 # ATS boards update at most a few times per day; cache for 6h so repeat
@@ -415,18 +467,15 @@ GREENHOUSE_COMPANIES = [
     ('capitalonetech',   'Capital One (Tech)'),
     # ── Consumer Tech / Marketplace ───────────────────────────────────────────
     ('airbnb',           'Airbnb'),
-    ('doordash',         'DoorDash'),
+    # doordash, uber, snap — migrated away from Greenhouse
     ('instacart',        'Instacart'),
     ('lyft',             'Lyft'),
-    ('uber',             'Uber'),
-    ('snap',             'Snap'),
     ('pinterest',        'Pinterest'),
     ('discord',          'Discord'),
     ('reddit',           'Reddit'),
     ('dropbox',          'Dropbox'),
     # ── Enterprise SaaS ──────────────────────────────────────────────────────
-    ('hubspot',          'HubSpot'),
-    ('zendesk',          'Zendesk'),
+    # hubspot, zendesk — migrated away from Greenhouse
     ('twilio',           'Twilio'),
     ('intercom',         'Intercom'),
     ('squarespace',      'Squarespace'),
@@ -451,7 +500,7 @@ GREENHOUSE_COMPANIES = [
     ('sprinklr',         'Sprinklr'),
     ('zuora',            'Zuora'),
     # ── Security ─────────────────────────────────────────────────────────────
-    ('palantir',         'Palantir'),
+    # palantir — migrated away from Greenhouse
     ('verkada',          'Verkada'),
     ('lacework',         'Lacework'),
     ('snyk',             'Snyk'),
@@ -465,7 +514,7 @@ GREENHOUSE_COMPANIES = [
     ('spotify',          'Spotify'),
     ('stitchfix',        'Stitch Fix'),
     # ── Data / Analytics Growth Stage ────────────────────────────────────────
-    ('looker',           'Looker'),
+    # looker — acquired by Google, migrated away from Greenhouse
     ('lightdash',        'Lightdash'),
     ('metriql',          'Metriql'),
     ('datacoves',        'Datacoves'),
@@ -638,13 +687,12 @@ GREENHOUSE_COMPANIES = [
     ('capgemini',            'Capgemini'),
     # ── Additional Tech ───────────────────────────────────────────────────────
     ('duolingo',             'Duolingo'),
-    ('shopify',              'Shopify'),
+    # shopify, zendesk — migrated away from Greenhouse (duplicate entries removed too)
     ('stripe-inc',           'Stripe'),
     ('twilio',               'Twilio'),
     ('zoom',                 'Zoom'),
     ('box',                  'Box'),
     ('docusign',             'DocuSign'),
-    ('zendesk',              'Zendesk'),
     # ── More DC / Civic ───────────────────────────────────────────────────────
     ('georgetownuniversity', 'Georgetown University'),
     ('americanuniversity',   'American University'),
@@ -690,6 +738,100 @@ GREENHOUSE_COMPANIES = [
     ('indeed',               'Indeed'),
     ('bumble',               'Bumble'),
     ('opcity',               'Opcity'),
+    # ── Verified by research agent ────────────────────────────────────────────
+    ('affirm',               'Affirm'),
+    ('apolloio',             'Apollo.io'),
+    ('betterment',           'Betterment'),
+    ('caylent',              'Caylent'),
+    ('celonis',              'Celonis'),
+    ('clickup',              'ClickUp'),
+    ('coursera',             'Coursera'),
+    ('demandbase',           'Demandbase'),
+    ('faire',                'Faire'),
+    ('gongio',               'Gong'),
+    ('grammarly',            'Grammarly'),
+    ('growtherapy',          'Grow Therapy'),
+    ('invitae',              'Invitae'),
+    ('mavenclinic',          'Maven Clinic'),
+    ('natera',               'Natera'),
+    ('nextdoor',             'Nextdoor'),
+    ('opendoor',             'Opendoor'),
+    ('pendo',                'Pendo'),
+    ('propublica',           'ProPublica'),
+    ('realtimeboardglobal',  'Miro (Board)'),
+    ('rubrik',               'Rubrik'),
+    ('salesloft',            'Salesloft'),
+    ('smartlyio',            'Smartly.io'),
+    ('stackadapt',           'StackAdapt'),
+    ('tanium',               'Tanium'),
+    ('tempus',               'Tempus'),
+    ('thoughtworks',         'Thoughtworks'),
+    ('tpgcareers',           'TPG Capital'),
+    ('udemy',                'Udemy'),
+    ('webflow',              'Webflow'),
+    ('wizinc',               'Wiz'),
+    ('zensourcer',           'Gem'),
+    # ── High-confidence additions ─────────────────────────────────────────────
+    ('10xgenomics',          '10x Genomics'),
+    ('abnormalsecurity',     'Abnormal Security'),
+    ('appfolio',             'AppFolio'),
+    ('cardlytics',           'Cardlytics'),
+    ('carrot',               'Carrot Fertility'),
+    ('cb-insights',          'CB Insights'),
+    ('cerebral',             'Cerebral'),
+    ('cityblock',            'Cityblock Health'),
+    ('coda',                 'Coda'),
+    ('color',                'Color Health'),
+    ('costar',               'CoStar Group'),
+    ('domo',                 'Domo'),
+    ('dotdash',              'Dotdash Meredith'),
+    ('envoy',                'Envoy'),
+    ('epicgames',            'Epic Games'),
+    ('everlane',             'Everlane'),
+    ('fastly',               'Fastly'),
+    ('flatiron',             'Flatiron Health'),
+    ('flywire',              'Flywire'),
+    ('grail',                'GRAIL'),
+    ('harness',              'Harness'),
+    ('headway',              'Headway'),
+    ('hims',                 'Hims & Hers'),
+    ('jobyaviation',         'Joby Aviation'),
+    ('justworks',            'Justworks'),
+    ('knowbe4',              'KnowBe4'),
+    ('lucidworks',           'Lucidworks'),
+    ('lyra',                 'Lyra Health'),
+    ('modernhealth',         'Modern Health'),
+    ('motive',               'Motive'),
+    ('netlify',              'Netlify'),
+    ('newrelic',             'New Relic'),
+    ('olo',                  'Olo'),
+    ('omada',                'Omada Health'),
+    ('orchard',              'Orchard'),
+    ('qualtrics',            'Qualtrics'),
+    ('recursion',            'Recursion Pharmaceuticals'),
+    ('relativity',           'Relativity'),
+    ('renttherunway',        'Rent the Runway'),
+    ('ro',                   'Ro'),
+    ('roblox',               'Roblox'),
+    ('seismic',              'Seismic'),
+    ('sentry',               'Sentry'),
+    ('sonder',               'Sonder'),
+    ('sourcegraph',          'Sourcegraph'),
+    ('spring-health',        'Spring Health'),
+    ('sumo-logic',           'Sumo Logic'),
+    ('sysdig',               'Sysdig'),
+    ('vacasa',               'Vacasa'),
+    ('whoop',                'WHOOP'),
+    ('workiva',              'Workiva'),
+    ('zocdoc',               'Zocdoc'),
+    # ── Migrated from Lever (confirmed working 2026-03) ───────────────────────
+    ('anthropic',            'Anthropic'),
+    ('asana',                'Asana'),
+    ('carta',                'Carta'),
+    ('vercel',               'Vercel'),
+    ('attentive',            'Attentive'),
+    ('launchdarkly',         'LaunchDarkly'),
+    ('jfrog',                'JFrog'),
 ]
 
 
@@ -728,7 +870,7 @@ def fetch_greenhouse_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=40) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         futures = [ex.submit(_fetch_greenhouse, slug, name)
                    for slug, name in GREENHOUSE_COMPANIES]
         for f in as_completed(futures):
@@ -741,134 +883,37 @@ def fetch_greenhouse_all() -> list:
 # Public API: GET https://api.lever.co/v0/postings/{slug}?mode=json
 
 LEVER_COMPANIES = [
-    # ── AI / ML ───────────────────────────────────────────────────────────────
-    ('openai',             'OpenAI'),
-    ('anthropic',          'Anthropic'),
-    ('scale-ai',           'Scale AI'),
-    ('cohere',             'Cohere'),
-    ('huggingface',        'Hugging Face'),
-    ('weights-biases',     'Weights & Biases'),
+    # ── Live as of 2026-03 (verified returning jobs) ──────────────────────────
+    # AI / Tech
     ('mistral',            'Mistral AI'),
-    ('together-ai',        'Together AI'),
-    ('perplexity-ai',      'Perplexity AI'),
-    ('elevenlabs',         'ElevenLabs'),
-    # ── Data / Analytics ──────────────────────────────────────────────────────
-    ('dbt',                'dbt'),
-    ('census',             'Census'),
-    ('anomalo',            'Anomalo'),
-    ('lightdash',          'Lightdash'),
-    # ── Consumer / Media ──────────────────────────────────────────────────────
-    ('netflix',            'Netflix'),
-    ('duolingo',           'Duolingo'),
-    ('reddit',             'Reddit'),
-    ('medium',             'Medium'),
-    ('substack',           'Substack'),
-    ('canva',              'Canva'),
-    # ── Enterprise SaaS ──────────────────────────────────────────────────────
-    ('asana',              'Asana'),
-    ('carta',              'Carta'),
-    ('loom',               'Loom'),
-    ('retool',             'Retool'),
-    ('linear',             'Linear'),
-    ('vercel',             'Vercel'),
-    ('stytch',             'Stytch'),
-    ('posthog',            'PostHog'),
-    ('cal',                'Cal.com'),
-    ('typeform',           'Typeform'),
-    ('hotjar',             'Hotjar'),
-    # ── FinTech ───────────────────────────────────────────────────────────────
-    ('betterment',         'Betterment'),
-    ('faire',              'Faire'),
-    # ── Infra / DevTools ─────────────────────────────────────────────────────
-    ('supabase',           'Supabase'),
-    ('samsara',            'Samsara'),
-    ('verkada',            'Verkada'),
-    # ── HR Tech ───────────────────────────────────────────────────────────────
-    ('rippling',           'Rippling'),
-    ('lattice',            'Lattice'),
-    ('zenefits',           'Zenefits'),
-    # ── Other ─────────────────────────────────────────────────────────────────
-    ('benchling',          'Benchling'),
-    ('navan',              'Navan'),
-    ('brex',               'Brex'),
-    ('ironclad',           'Ironclad'),
-    ('coda',               'Coda'),
-    ('replit',             'Replit'),
-    ('cursor',             'Cursor'),
-    # ── Political / Civic Tech ────────────────────────────────────────────────
-    ('ngpvan',             'NGP VAN'),
-    ('everyaction',        'EveryAction'),
-    ('nationbuilder',      'NationBuilder'),
-    ('hustle',             'Hustle'),
-    ('resistancedashboard','Resistance Dashboard'),
-    # ── DC / Policy Research Firms ────────────────────────────────────────────
-    ('mathematica',        'Mathematica Policy Research'),
-    ('abtassociates',      'Abt Associates'),
-    ('pricewaterhousecoopers', 'PwC'),
-    ('cgap',               'CGAP'),
-    # ── DC Civic / Political Advocacy ────────────────────────────────────────
-    ('ndi',                'National Democratic Institute'),
-    ('iri',                'International Republican Institute'),
-    ('opensecrets',        'OpenSecrets'),
+    ('gohighlevel',        'GoHighLevel'),
+    ('pattern',            'Pattern'),
+    # FinTech / Payments
+    ('plaid',              'Plaid'),
+    ('nium',               'Nium'),
+    ('floqast',            'FloQast'),
+    ('emburse',            'Emburse'),
+    ('pipedrive',          'Pipedrive'),
+    ('wealthfront',        'Wealthfront'),
+    # Enterprise SaaS
+    ('outreach',           'Outreach'),
+    ('captivateiq',        'CaptivateIQ'),
+    ('highspot',           'Highspot'),
+    ('clari',              'Clari'),
+    ('jumpcloud',          'JumpCloud'),
+    # E-commerce / Consumer
+    ('loopreturns',        'Loop Returns'),
+    ('minted',             'Minted'),
+    # Political / Civic
     ('commoncause',        'Common Cause'),
-    ('acronym',            'ACRONYM'),
-    ('nextgenamerica',     'NextGen America'),
-    ('priorities-usa',     'Priorities USA'),
     ('emilyslist',         "EMILY's List"),
-    ('issue-one',          'Issue One'),
-    ('brennancenter',      'Brennan Center for Justice'),
-    ('protectdemocracy',   'Protect Democracy'),
-    ('electionline',       'ElectionLine / Fair Elections Center'),
-    # ── International Development / Global ────────────────────────────────────
-    ('globalfund',         'The Global Fund'),
-    ('ircrm',              'International Rescue Committee'),
-    ('savethechildren',    'Save the Children'),
-    ('careusa',            'CARE USA'),
-    ('psi',                'Population Services International'),
-    ('pathfinder',         'Pathfinder International'),
-    ('engenderhealth',     'EngenderHealth'),
-    # ── DC Consulting / Professional Services ────────────────────────────────
-    ('guidehouse',         'Guidehouse'),
-    ('fticons',            'FTI Consulting'),
-    ('huron',              'Huron Consulting Group'),
-    ('censeo',             'Censeo Consulting Group'),
-    ('attain',             'Attain LLC'),
-    ('kearney',            'Kearney'),
-    # ── DC Media ─────────────────────────────────────────────────────────────
     ('nationaljournal',    'National Journal'),
-    ('rollcall',           'Roll Call'),
-    ('cqrollcall',         'CQ / Roll Call'),
-    ('thehill',            'The Hill'),
-    ('dcreport',           'DCReport'),
-    # ── Data / Media ──────────────────────────────────────────────────────────
-    ('fivethirtyeight',    'FiveThirtyEight'),
-    ('themarkup',          'The Markup'),
-    ('theatlantic',        'The Atlantic'),
-    ('propublica',         'ProPublica'),
-    ('theintercept',       'The Intercept'),
-    ('texastribune',       'Texas Tribune'),
-    # ── Policy / Civic (new) ─────────────────────────────────────────────────
-    ('rockefellerfoundation', 'Rockefeller Foundation'),
-    ('everytownresearch',  'Everytown Research'),
-    ('dccc',               'DCCC'),
-    ('dscc',               'DSCC'),
-    # ── GovTech (new) ─────────────────────────────────────────────────────────
-    ('easypost',           'EasyPost'),
-    ('codeforamerica',     'Code for America (Lever)'),
-    # ── Miami (new) ───────────────────────────────────────────────────────────
-    ('royal-caribbean',    'Royal Caribbean'),
-    ('nuvei',              'Nuvei'),
-    # ── Austin (new) ──────────────────────────────────────────────────────────
-    ('opcity',             'OwnUp'),
-    ('karat',              'Karat'),
-    ('samsara',            'Samsara'),
-    ('homebase',           'Homebase'),
-    # ── Data / Analytics (new) ───────────────────────────────────────────────
-    ('getcensus',          'Census'),
-    ('preset',             'Preset'),
-    ('transform',          'Transform'),
-    ('evidence',           'Evidence'),
-    ('rill-data',          'Rill Data'),
+    ('15five',             '15Five'),
+    # Media / Other
+    ('medium',             'Medium'),
+    ('xero',               'Xero'),
+    ('hyperscience',       'HyperScience'),
+    ('narmi',              'Narmi'),
 ]
 
 
@@ -884,7 +929,8 @@ def _fetch_lever(slug: str, company_name: str) -> list:
         out = []
         for j in resp.json():
             url = j.get('hostedUrl', '')
-            if not url:
+            # Skip postings that redirect off jobs.lever.co (e.g. Opendoor splash pages)
+            if not url or 'jobs.lever.co' not in url:
                 continue
             cats = j.get('categories') or {}
             loc = cats.get('location', '')
@@ -915,7 +961,7 @@ def fetch_lever_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=30) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         futures = [ex.submit(_fetch_lever, slug, name)
                    for slug, name in LEVER_COMPANIES]
         for f in as_completed(futures):
@@ -975,6 +1021,15 @@ ASHBY_COMPANIES = [
     ('motherduck',           'MotherDuck'),
     ('duckdb-foundation',    'DuckDB Foundation'),
     ('turbopuffer',          'turbopuffer'),
+    # ── Migrated from Lever (confirmed working 2026-03) ───────────────────────
+    ('openai',               'OpenAI'),
+    ('cohere',               'Cohere'),
+    ('elevenlabs',           'ElevenLabs'),
+    ('replit',               'Replit'),
+    ('supabase',             'Supabase'),
+    ('cursor',               'Cursor'),
+    ('benchling',            'Benchling'),
+    ('sentry',               'Sentry'),
 ]
 
 
@@ -1023,7 +1078,7 @@ def fetch_ashby_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=15) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         futures = [ex.submit(_fetch_ashby, slug, name)
                    for slug, name in ASHBY_COMPANIES]
         for f in as_completed(futures):
@@ -1250,9 +1305,9 @@ WORKDAY_COMPANIES = [
 
 
 _WORKDAY_SEARCH_TERMS = [
-    'data analyst', 'data engineer', 'software engineer',
-    'analytics engineer', 'business intelligence', 'data scientist',
-    'product manager', 'machine learning', 'solutions engineer',
+    'analyst', 'engineer', 'data',
+    'product manager', 'business intelligence',
+    'analytics', 'software',
 ]
 
 def _fetch_workday(tenant: str, board: str, suffix: str, company_name: str) -> list:
@@ -1296,7 +1351,7 @@ def _fetch_workday(tenant: str, board: str, suffix: str, company_name: str) -> l
         except Exception:
             return False, []
 
-    # Run all term searches in parallel (max 3 workers per company)
+    # Run all term searches in parallel (capped to avoid thread explosion when nested)
     with ThreadPoolExecutor(max_workers=3) as ex:
         futures = {ex.submit(_fetch_term, term): term for term in _WORKDAY_SEARCH_TERMS}
         for f in as_completed(futures):
@@ -1357,7 +1412,7 @@ def fetch_workday_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=20) as ex:
+    with ThreadPoolExecutor(max_workers=10) as ex:
         futures = [ex.submit(_fetch_workday, tenant, board, suffix, name)
                    for tenant, board, suffix, name in WORKDAY_COMPANIES]
         for f in as_completed(futures):
@@ -1465,7 +1520,7 @@ def fetch_icims_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=15) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         futures = [ex.submit(_fetch_icims, tenant, name)
                    for tenant, name in ICIMS_COMPANIES]
         for f in as_completed(futures):
@@ -1612,7 +1667,7 @@ def fetch_taleo_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=15) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         futures = [ex.submit(_fetch_taleo, tenant, name)
                    for tenant, name in TALEO_COMPANIES]
         for f in as_completed(futures):
@@ -1726,7 +1781,7 @@ def fetch_bamboohr_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=15) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         futures = [ex.submit(_fetch_bamboohr, sub, name)
                    for sub, name in BAMBOOHR_COMPANIES]
         for f in as_completed(futures):
@@ -1770,6 +1825,82 @@ WORKABLE_COMPANIES = [
     # ── Media / Research ──────────────────────────────────────────────────────
     ('themarkup',            'The Markup'),
     ('citylab',              'Bloomberg CityLab'),
+    # ── AI / ML / Data ────────────────────────────────────────────────────────
+    ('dataiku',              'Dataiku'),
+    ('hex',                  'Hex Technologies'),
+    ('deepnote',             'Deepnote'),
+    ('tecton',               'Tecton'),
+    ('gretel',               'Gretel'),
+    ('ataccama',             'Ataccama'),
+    ('precisely',            'Precisely'),
+    # ── Product Analytics / CX ────────────────────────────────────────────────
+    ('maze',                 'Maze'),
+    ('appcues',              'Appcues'),
+    ('pendo-io',             'Pendo'),
+    ('gainsight',            'Gainsight'),
+    ('totango',              'Totango'),
+    ('churnzero',            'ChurnZero'),
+    ('vitally',              'Vitally'),
+    ('gong-io',              'Gong'),
+    ('salesloft',            'Salesloft'),
+    ('apollo-io',            'Apollo.io'),
+    ('zoominfo',             'ZoomInfo'),
+    ('clearbit',             'Clearbit'),
+    ('bombora',              'Bombora'),
+    ('g2',                   'G2'),
+    ('trustpilot',           'Trustpilot'),
+    # ── Fintech / Payments ────────────────────────────────────────────────────
+    ('patreon',              'Patreon'),
+    ('substack',             'Substack'),
+    ('chargebee',            'Chargebee'),
+    ('recurly',              'Recurly'),
+    ('adyen',                'Adyen'),
+    ('checkout-com',         'Checkout.com'),
+    ('rapyd',                'Rapyd'),
+    ('payoneer',             'Payoneer'),
+    ('tipalti',              'Tipalti'),
+    ('expensify',            'Expensify'),
+    ('navan',                'Navan'),
+    ('airbase',              'Airbase'),
+    # ── HR / Work Tech ────────────────────────────────────────────────────────
+    ('hibob',                'HiBob'),
+    ('oysterhr',             'Oyster HR'),
+    ('velocity-global',      'Velocity Global'),
+    # ── E-commerce / Logistics ────────────────────────────────────────────────
+    ('recharge',             'Recharge'),
+    ('loop-returns',         'Loop Returns'),
+    ('narvar',               'Narvar'),
+    ('shipbob',              'ShipBob'),
+    ('flexport',             'Flexport'),
+    ('stord',                'Stord'),
+    # ── Security ──────────────────────────────────────────────────────────────
+    ('1password',            '1Password'),
+    ('dashlane',             'Dashlane'),
+    ('bitwarden',            'Bitwarden'),
+    ('snyk',                 'Snyk'),
+    ('lacework',             'Lacework'),
+    ('orca-security',        'Orca Security'),
+    ('wiz-io',               'Wiz'),
+    ('axonius',              'Axonius'),
+    ('recorded-future',      'Recorded Future'),
+    # ── Healthcare Tech ───────────────────────────────────────────────────────
+    ('spring-health',        'Spring Health'),
+    ('virta-health',         'Virta Health'),
+    ('noom',                 'Noom'),
+    ('omada-health',         'Omada Health'),
+    ('betterhelp',           'BetterHelp'),
+    ('talkspace',            'Talkspace'),
+    # ── Verified by research agent ────────────────────────────────────────────
+    ('groundtruth',          'GroundTruth'),
+    ('rokt',                 'Rokt'),
+    ('zerofox',              'ZeroFox'),
+    ('aimpoint-digital',     'Aimpoint Digital'),
+    ('superdispatch',        'Super Dispatch'),
+    ('nucleusteq',           'NucleusTeq'),
+    ('bear-robotics',        'Bear Robotics'),
+    ('compass-datacenters',  'Compass Datacenters'),
+    ('nationsbenefits',      'NationsBenefits'),
+    ('netrix-global',        'Netrix Global'),
 ]
 
 
@@ -1812,7 +1943,7 @@ def fetch_workable_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=15) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         futures = [ex.submit(_fetch_workable, slug, name)
                    for slug, name in WORKABLE_COMPANIES]
         for f in as_completed(futures):
@@ -1946,7 +2077,7 @@ def _fetch_career_page(url: str, company_name: str) -> list:
     Tries JSON-LD first, then looks for job links via BeautifulSoup heuristics.
     """
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=15)
+        resp = requests.get(url, headers=_HEADERS, timeout=8)
         if resp.status_code != 200:
             return []
         soup = BeautifulSoup(resp.text, 'html.parser')
@@ -2020,7 +2151,7 @@ def fetch_career_pages_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=16) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         futures = [ex.submit(_fetch_career_page, url, name)
                    for url, name in COMPANY_CAREER_PAGES]
         for f in as_completed(futures):
@@ -2071,10 +2202,12 @@ _ADZUNA_LOCATIONS = [
 _ADZUNA_RADIUS_MILES = 50
 
 
-def fetch_adzuna(queries: list = None) -> list:
+def fetch_adzuna(queries: list = None, min_salary: int = 100_000) -> list:
+    """Fetch from Adzuna with server-side salary gating — only high-paying jobs
+    are returned, saving API quota on irrelevant listings."""
     import os
-    app_id = os.environ.get('ADZUNA_APP_ID')
-    app_key = os.environ.get('ADZUNA_APP_KEY')
+    app_id  = os.environ.get('ADZUNA_APP_ID')  or os.environ.get('ADZUNA_ID')
+    app_key = os.environ.get('ADZUNA_APP_KEY') or os.environ.get('ADZUNA_KEY')
     if not app_id or not app_key:
         return []
 
@@ -2094,7 +2227,8 @@ def fetch_adzuna(queries: list = None) -> list:
                     'where': where,
                     'distance': radius,
                     'results_per_page': 50,
-                    'salary_include_unknown': 0,
+                    'salary_min': min_salary,      # server-side salary gate
+                    'salary_include_unknown': 0,   # exclude no-salary listings
                     'content-type': 'application/json',
                 },
                 headers=_HEADERS, timeout=_TIMEOUT,
@@ -2127,7 +2261,7 @@ def fetch_adzuna(queries: list = None) -> list:
             pass
         return results
 
-    with ThreadPoolExecutor(max_workers=12) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         futures = [
             ex.submit(_fetch_one, q, where, radius)
             for q in terms
@@ -2316,6 +2450,59 @@ BREEZY_COMPANIES = [
     # ── DC Policy / Consulting ────────────────────────────────────────────────
     ('nscresearch',      'NSC Research'),
     ('policylink',       'PolicyLink'),
+    # ── Tech / SaaS ───────────────────────────────────────────────────────────
+    ('invision',         'InVision'),
+    ('miro',             'Miro'),
+    ('lucid',            'Lucid Software'),
+    ('podium',           'Podium'),
+    ('entrata',          'Entrata'),
+    ('weave',            'Weave'),
+    ('ivanti',           'Ivanti'),
+    ('connectwise',      'ConnectWise'),
+    ('kaseya',           'Kaseya'),
+    ('solarwinds',       'SolarWinds'),
+    ('goto',             'GoTo'),
+    ('nutanix',          'Nutanix'),
+    ('commvault',        'Commvault'),
+    ('veeam',            'Veeam'),
+    ('backblaze',        'Backblaze'),
+    # ── Marketing / AdTech ────────────────────────────────────────────────────
+    ('meltwater',        'Meltwater'),
+    ('semrush',          'Semrush'),
+    ('similarweb',       'SimilarWeb'),
+    # ── IT Services ───────────────────────────────────────────────────────────
+    ('dxc-technology',   'DXC Technology'),
+    ('conduent',         'Conduent'),
+    ('unisys',           'Unisys'),
+    ('cognizant',        'Cognizant'),
+    ('hcl-technologies', 'HCL Technologies'),
+    ('ltimindtree',      'LTIMindtree'),
+    # ── Healthcare ────────────────────────────────────────────────────────────
+    ('guardant-health',  'Guardant Health'),
+    ('flatiron-health',  'Flatiron Health'),
+    ('tempus',           'Tempus'),
+    ('illumina',         'Illumina'),
+    # ── Verified by research agent ────────────────────────────────────────────
+    ('aimpoint-digital',     'Aimpoint Digital'),
+    ('bear-robotics',        'Bear Robotics'),
+    ('bexorg',               'Bexorg'),
+    ('compass-datacenters',  'Compass Datacenters'),
+    ('datadrive',            'DataDrive'),
+    ('founders-workshop',    'Founders Workshop'),
+    ('halliday',             'Halliday'),
+    ('insiten',              'Insiten'),
+    ('ltg',                  'LTG'),
+    ('nationsbenefits',      'NationsBenefits'),
+    ('navaide',              'Navaide'),
+    ('netrix-global',        'Netrix Global'),
+    ('nucleusteq',           'NucleusTeq'),
+    ('sa-global',            'sa.global'),
+    ('seeknow',              'Seek Now'),
+    ('seidor',               'SEIDOR'),
+    ('superdispatch',        'Super Dispatch'),
+    ('techsmart',            'TechSmart'),
+    ('turaco',               'Turaco'),
+    ('zerofox',              'ZeroFox'),
 ]
 
 
@@ -2324,7 +2511,7 @@ def fetch_breezyhr_all() -> list:
     if cached is not None:
         return cached
     out = []
-    with ThreadPoolExecutor(max_workers=12) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         futures = [ex.submit(_fetch_breezyhr, slug, name)
                    for slug, name in BREEZY_COMPANIES]
         for f in as_completed(futures):
@@ -2554,7 +2741,7 @@ def fetch_indeed(queries: list) -> list:
             pass
         return results
 
-    with ThreadPoolExecutor(max_workers=16) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         futures = [
             ex.submit(_fetch_one, q, loc)
             for q in queries
@@ -2637,7 +2824,7 @@ def fetch_jsearch(queries: list) -> list:
             pass
         return results
 
-    with ThreadPoolExecutor(max_workers=16) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         futures = [
             ex.submit(_fetch_one, q, loc)
             for q in queries
@@ -2649,6 +2836,138 @@ def fetch_jsearch(queries: list) -> list:
                 if url and url not in seen:
                     seen.add(url)
                     out.append(job)
+    return out
+
+
+
+
+# ── Recruitee ATS ─────────────────────────────────────────────────────────────
+# Public API: GET https://careers.recruitee.com/api/c/{slug}/offers/
+# No auth required.
+
+RECRUITEE_COMPANIES = [
+    # ── Tech / SaaS ───────────────────────────────────────────────────────────
+    ('n26',                'N26'),
+    ('sumup',              'SumUp'),
+    ('klarna',             'Klarna'),
+    ('paysafe',            'Paysafe'),
+    ('worldline',          'Worldline'),
+    ('nexi',               'Nexi'),
+    ('nets',               'Nets'),
+    ('bambora',            'Bambora'),
+    ('zettle',             'Zettle'),
+    ('izettle',            'iZettle'),
+    ('mollie',             'Mollie'),
+    ('buckaroo',           'Buckaroo'),
+    ('multisafepay',       'MultiSafePay'),
+    ('pay-nl',             'Pay.nl'),
+    ('payplug',            'PayPlug'),
+    ('lemonway',           'Lemonway'),
+    ('lime-technologies',  'Lime Technologies'),
+    ('limeade',            'Limeade'),
+    ('gympass',            'Gympass'),
+    ('wellhub',            'Wellhub'),
+    ('forma',              'Forma'),
+    ('bswift',             'bswift'),
+    ('businessolver',      'Businessolver'),
+    ('benefitfocus',       'Benefitfocus'),
+    ('benify',             'Benify'),
+    ('perkbox',            'Perkbox'),
+    ('reward-gateway',     'Reward Gateway'),
+    ('achievers',          'Achievers'),
+    ('recognition-io',     'Kazoo'),
+    ('bonusly',            'Bonusly'),
+    ('assembly',           'Assembly'),
+    ('nectar',             'Nectar'),
+    ('motivosity',         'Motivosity'),
+    ('workhuman',          'Workhuman'),
+    ('kudos',              'Kudos'),
+    ('fond',               'Fond'),
+    ('awardco',            'Awardco'),
+    # ── Media / Content ───────────────────────────────────────────────────────
+    ('papier',             'Papier'),
+    ('photobox',           'Photobox'),
+    ('snapfish',           'Snapfish'),
+    ('shutterfly',         'Shutterfly'),
+    ('artifact-uprising',  'Artifact Uprising'),
+    ('minted',             'Minted'),
+    ('redbubble',          'Redbubble'),
+    ('society6',           'Society6'),
+    ('threadless',         'Threadless'),
+    ('teepublic',          'TeePublic'),
+    ('merch-by-amazon',    'Merch by Amazon'),
+    ('printful',           'Printful'),
+    ('printify',           'Printify'),
+    ('gooten',             'Gooten'),
+    ('gelato',             'Gelato'),
+    ('prodigi',            'Prodigi'),
+    ('contrado',           'Contrado'),
+    # ── Enterprise / Services ─────────────────────────────────────────────────
+    ('visma',              'Visma'),
+    ('unit4',              'Unit4'),
+    ('infor',              'Infor'),
+    ('epicor',             'Epicor'),
+    ('ifs',                'IFS'),
+    ('aptean',             'Aptean'),
+    ('syspro',             'SYSPRO'),
+    ('sage',               'Sage'),
+    ('pegasystems',        'Pegasystems'),
+    ('appian',             'Appian'),
+    ('outsystems',         'OutSystems'),
+    ('mendix',             'Mendix'),
+    ('kofax',              'Kofax'),
+    ('opentext',           'OpenText'),
+    ('hyland',             'Hyland'),
+    ('laserfiche',         'Laserfiche'),
+    ('m-files',            'M-Files'),
+    ('alfresco',           'Alfresco'),
+    ('nuxeo',              'Nuxeo'),
+    ('box',                'Box'),
+]
+
+
+def _fetch_recruitee(slug: str, company_name: str) -> list:
+    try:
+        resp = requests.get(
+            f'https://careers.recruitee.com/api/c/{slug}/offers/',
+            headers=_HEADERS, timeout=_TIMEOUT,
+        )
+        if resp.status_code != 200:
+            return []
+        out = []
+        for j in resp.json().get('offers', []):
+            job_url = j.get('careers_url', '') or j.get('url', '')
+            if not job_url:
+                continue
+            loc = j.get('location', '') or j.get('city', '') or 'United States'
+            remote = j.get('remote', False) or 'remote' in loc.lower()
+            out.append(_job(
+                url=job_url,
+                title=j.get('title', ''),
+                company=company_name,
+                description=j.get('description', ''),
+                location=loc,
+                remote=remote,
+                salary=None,
+                date_posted=j.get('published_at'),
+                source=f'recruitee/{slug}',
+            ))
+        return out
+    except Exception:
+        return []
+
+
+def fetch_recruitee_all() -> list:
+    cached = _cache_read('recruitee')
+    if cached is not None:
+        return cached
+    out = []
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futures = [ex.submit(_fetch_recruitee, slug, name)
+                   for slug, name in RECRUITEE_COMPANIES]
+        for f in as_completed(futures):
+            out.extend(f.result())
+    _cache_write('recruitee', out)
     return out
 
 
@@ -2777,7 +3096,7 @@ def discover_ats_via_search(queries: list) -> list:
             company_name = slug.replace('-', ' ').title()
             fetch_tasks.append((ats, slug, company_name))
 
-    with ThreadPoolExecutor(max_workers=20) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         futures = {
             ex.submit(fetch_map[ats], slug, name): (ats, slug)
             for ats, slug, name in fetch_tasks
@@ -2909,7 +3228,7 @@ def fetch_jooble(queries: list) -> list:
             pass
         return results
 
-    with ThreadPoolExecutor(max_workers=16) as ex:
+    with ThreadPoolExecutor(max_workers=6) as ex:
         futures = [
             ex.submit(_fetch_one, q, loc)
             for q in queries
@@ -2929,152 +3248,28 @@ def fetch_jooble(queries: list) -> list:
 # Amazon.jobs uses a GraphQL API.
 
 _BIGTECH_SEARCH_TERMS = [
-    'data analyst', 'data engineer', 'software engineer', 'analytics engineer',
-    'business intelligence', 'machine learning engineer', 'data scientist',
-    'product manager', 'program manager', 'solutions engineer',
+    'analyst', 'engineer', 'data', 'software',
+    'product manager', 'program manager', 'analytics',
+    'developer', 'architect', 'consultant',
+    'machine learning', 'business intelligence',
 ]
 
 
-def _fetch_google_jobs() -> list:
-    """Google Careers — public JSON search API."""
-    cached = _cache_read('google_careers')
-    if cached is not None:
-        return cached
-    out = []
-    try:
-        for term in _BIGTECH_SEARCH_TERMS[:6]:
-            url = (
-                'https://careers.google.com/api/jobs/jobs-v1/jobs:search/'
-                f'?q={requests.utils.quote(term)}'
-                '&location=United+States&employment_type=FULL_TIME&page_size=50'
-            )
-            r = _get(url, timeout=_TIMEOUT)
-            if r.status_code != 200:
-                continue
-            data = r.json()
-            for job in data.get('jobs', []):
-                locs = [loc.get('display', '') for loc in job.get('locations', [])]
-                loc_str = ', '.join(locs) if locs else 'United States'
-                job_id = job.get('id', '')
-                job_url = f'https://careers.google.com/jobs/results/{job_id}/' if job_id else ''
-                if not job_url:
-                    continue
-                out.append(_job(
-                    url=job_url,
-                    title=job.get('title', ''),
-                    company='Google',
-                    description=job.get('description', ''),
-                    location=loc_str,
-                    remote='remote' in loc_str.lower(),
-                    salary=None,
-                    source='google_careers',
-                ))
-    except Exception:
-        pass
-    out = list({j['url']: j for j in out if j['url']}.values())
-    _cache_write('google_careers', out)
-    return out
-
-
-def _fetch_microsoft_jobs() -> list:
-    """Microsoft Careers API — public JSON endpoint."""
-    cached = _cache_read('microsoft_careers')
-    if cached is not None:
-        return cached
-    out = []
-    try:
-        for term in _BIGTECH_SEARCH_TERMS[:6]:
-            url = (
-                'https://jobs.careers.microsoft.com/global/en/search'
-                f'?q={requests.utils.quote(term)}'
-                '&lc=United+States&l=en_us&pg=1&pgSz=50&o=Relevance&flt=true'
-            )
-            r = _get(url, timeout=_TIMEOUT)
-            if r.status_code != 200:
-                continue
-            data = r.json()
-            for job in data.get('operationResult', {}).get('result', {}).get('jobs', []):
-                job_id = job.get('jobId', '')
-                job_url = f'https://jobs.careers.microsoft.com/global/en/job/{job_id}/' if job_id else ''
-                if not job_url:
-                    continue
-                out.append(_job(
-                    url=job_url,
-                    title=job.get('title', ''),
-                    company='Microsoft',
-                    description=job.get('description', '') or job.get('descriptionTeaser', ''),
-                    location=job.get('location', 'United States'),
-                    remote='remote' in (job.get('location') or '').lower(),
-                    salary=None,
-                    source='microsoft_careers',
-                ))
-    except Exception:
-        pass
-    out = list({j['url']: j for j in out if j['url']}.values())
-    _cache_write('microsoft_careers', out)
-    return out
-
-
-def _fetch_meta_jobs() -> list:
-    """Meta Careers GraphQL API."""
-    cached = _cache_read('meta_careers')
-    if cached is not None:
-        return cached
-    out = []
-    try:
-        url = 'https://www.metacareers.com/graphql'
-        for term in _BIGTECH_SEARCH_TERMS[:6]:
-            payload = {
-                'operationName': 'SearchJobsQuery',
-                'variables': {'search_input': {'q': term, 'page': 1, 'results_per_page': 50}},
-                'doc_id': '4809624932430229',
-            }
-            r = requests.post(url, json=payload, headers=_HEADERS, timeout=_TIMEOUT)
-            if r.status_code != 200:
-                continue
-            data = r.json()
-            jobs = (data.get('data', {})
-                        .get('job_search', {})
-                        .get('results', []))
-            for job in jobs:
-                job_id = job.get('id', '')
-                job_url = f'https://www.metacareers.com/jobs/{job_id}/' if job_id else ''
-                if not job_url:
-                    continue
-                locs = job.get('locations', [])
-                loc_str = ', '.join(locs) if locs else 'United States'
-                out.append(_job(
-                    url=job_url,
-                    title=job.get('title', ''),
-                    company='Meta',
-                    description=job.get('description', '') or job.get('content', ''),
-                    location=loc_str,
-                    remote='remote' in loc_str.lower(),
-                    salary=None,
-                    source='meta_careers',
-                ))
-    except Exception:
-        pass
-    out = list({j['url']: j for j in out if j['url']}.values())
-    _cache_write('meta_careers', out)
-    return out
-
-
 def _fetch_amazon_jobs() -> list:
-    """Amazon Jobs API — public JSON endpoint."""
+    """Amazon Jobs — public JSON endpoint (confirmed working)."""
     cached = _cache_read('amazon_careers')
     if cached is not None:
         return cached
     out = []
     try:
-        for term in _BIGTECH_SEARCH_TERMS[:6]:
+        for term in _BIGTECH_SEARCH_TERMS[:8]:
             url = (
                 'https://www.amazon.jobs/en/search.json'
                 f'?base_query={requests.utils.quote(term)}'
-                '&country=United+States&radius=24km&facets[]=normalized_country_code'
-                '&facets[]=normalized_state_name&result_limit=50&sort=relevant'
+                '&result_limit=50&sort=relevant'
             )
-            r = _get(url, timeout=_TIMEOUT)
+            r = _get(url, timeout=_TIMEOUT,
+                     headers={**_HEADERS, 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
             if r.status_code != 200:
                 continue
             data = r.json()
@@ -3083,14 +3278,14 @@ def _fetch_amazon_jobs() -> list:
                 job_url = f'https://www.amazon.jobs{job_path}' if job_path else ''
                 if not job_url:
                     continue
-                locs = job.get('location', '') or job.get('city', '') or 'United States'
+                loc = job.get('location', '') or job.get('city', '') or 'United States'
                 out.append(_job(
                     url=job_url,
                     title=job.get('title', ''),
-                    company='Amazon',
-                    description=job.get('description', '') or job.get('basic_qualifications', ''),
-                    location=locs,
-                    remote='remote' in locs.lower(),
+                    company=job.get('company_name', 'Amazon'),
+                    description=job.get('description_short', '') or job.get('description', '') or job.get('basic_qualifications', ''),
+                    location=loc,
+                    remote='remote' in loc.lower(),
                     salary=None,
                     source='amazon_careers',
                 ))
@@ -3101,103 +3296,12 @@ def _fetch_amazon_jobs() -> list:
     return out
 
 
-def _fetch_apple_jobs() -> list:
-    """Apple Jobs JSON API."""
-    cached = _cache_read('apple_careers')
-    if cached is not None:
-        return cached
-    out = []
-    try:
-        for term in _BIGTECH_SEARCH_TERMS[:5]:
-            url = (
-                f'https://jobs.apple.com/api/role/search?q={requests.utils.quote(term)}'
-                '&filters=&page=1&locale=en-us'
-            )
-            r = _get(url, timeout=_TIMEOUT)
-            if r.status_code != 200:
-                continue
-            data = r.json()
-            for job in data.get('searchResults', []):
-                job_id = job.get('positionId', '')
-                job_url = f'https://jobs.apple.com/en-us/details/{job_id}' if job_id else ''
-                if not job_url:
-                    continue
-                locs = job.get('locations', [])
-                loc_str = ', '.join(
-                    loc.get('name', '') for loc in locs if loc.get('name')
-                ) or 'United States'
-                out.append(_job(
-                    url=job_url,
-                    title=job.get('postingTitle', '') or job.get('title', ''),
-                    company='Apple',
-                    description=job.get('jobSummary', ''),
-                    location=loc_str,
-                    remote='remote' in loc_str.lower(),
-                    salary=None,
-                    source='apple_careers',
-                ))
-    except Exception:
-        pass
-    out = list({j['url']: j for j in out if j['url']}.values())
-    _cache_write('apple_careers', out)
-    return out
-
-
-def _fetch_netflix_jobs() -> list:
-    """Netflix Jobs JSON API."""
-    cached = _cache_read('netflix_careers')
-    if cached is not None:
-        return cached
-    out = []
-    try:
-        # Netflix uses a search API
-        url = 'https://jobs.netflix.com/api/search?q=&team=&location=&level=&commit='
-        r = _get(url, timeout=_TIMEOUT)
-        if r.status_code == 200:
-            data = r.json()
-            for job in data.get('jobs', []):
-                job_id = job.get('external_id', '') or job.get('id', '')
-                job_url = f'https://jobs.netflix.com/jobs/{job_id}' if job_id else ''
-                if not job_url:
-                    continue
-                locs = job.get('location', '')
-                out.append(_job(
-                    url=job_url,
-                    title=job.get('text', '') or job.get('title', ''),
-                    company='Netflix',
-                    description=job.get('description', ''),
-                    location=locs or 'United States',
-                    remote='remote' in (locs or '').lower(),
-                    salary=None,
-                    source='netflix_careers',
-                ))
-    except Exception:
-        pass
-    _cache_write('netflix_careers', out)
-    return out
-
-
 def fetch_bigtech_all() -> list:
-    """Fetch jobs from Google, Microsoft, Meta, Amazon, Apple, Netflix in parallel."""
+    """Fetch jobs from Amazon (other big tech APIs are not publicly accessible)."""
     cached = _cache_read('bigtech')
     if cached is not None:
         return cached
-    out = []
-    fetchers = [
-        _fetch_google_jobs,
-        _fetch_microsoft_jobs,
-        _fetch_meta_jobs,
-        _fetch_amazon_jobs,
-        _fetch_apple_jobs,
-        _fetch_netflix_jobs,
-    ]
-    with ThreadPoolExecutor(max_workers=6) as ex:
-        futures = {ex.submit(fn): fn.__name__ for fn in fetchers}
-        for f in as_completed(futures):
-            try:
-                out.extend(f.result())
-            except Exception:
-                pass
+    out = _fetch_amazon_jobs()
     _cache_write('bigtech', out)
     return out
 
@@ -3214,21 +3318,21 @@ def fetch_all_jobs(queries: list, watchlist: list = None) -> dict:
     def _merge(jobs):
         for j in jobs:
             url = j.get('url', '')
-            if url and url not in all_jobs:
+            if url and url not in all_jobs and not _is_login_walled(url):
                 all_jobs[url] = j
 
-    with ThreadPoolExecutor(max_workers=50) as ex:
+    with ThreadPoolExecutor(max_workers=16) as ex:
         futures = []
 
         # Keyword-search APIs (per query)
         for q in queries[:5]:
             futures.append(ex.submit(fetch_themuse, q))
             futures.append(ex.submit(fetch_jobicy, q))
-            futures.append(ex.submit(fetch_smartrecruiters, q))
+            # fetch_smartrecruiters disabled — API path returns 404
 
         # Full-board fetches
-        futures.append(ex.submit(fetch_arbeitnow))
-        futures.append(ex.submit(fetch_remoteok))
+        # fetch_arbeitnow disabled — European jobs only
+        # fetch_remoteok disabled — requires paid subscription
         futures.append(ex.submit(fetch_weworkremotely))
         futures.append(ex.submit(fetch_himalayas))
         futures.append(ex.submit(fetch_remotive))
@@ -3241,17 +3345,16 @@ def fetch_all_jobs(queries: list, watchlist: list = None) -> dict:
         futures.append(ex.submit(fetch_lever_all))
         futures.append(ex.submit(fetch_ashby_all))
         futures.append(ex.submit(fetch_workday_all))
-        futures.append(ex.submit(fetch_breezyhr_all))
+        # fetch_breezyhr_all disabled — all slugs redirect to homepage (302)
 
-        # DC-area mid-cap / Russell 2000 (iCIMS ATS)
-        futures.append(ex.submit(fetch_icims_all))
+        # fetch_icims_all disabled — RSS endpoint now login-gated (302 to login)
 
-        # BambooHR: political/boutique/think-tank companies
-        futures.append(ex.submit(fetch_bamboohr_all))
-        futures.append(ex.submit(fetch_workable_all))
+        # fetch_bamboohr_all disabled — API returns 403 for all companies
+        # fetch_workable_all disabled — /api/v3/accounts/{slug}/jobs returns 404
 
-        # Taleo / Oracle Recruiting Cloud (Fortune 500 companies)
-        futures.append(ex.submit(fetch_taleo_all))
+        # fetch_taleo_all disabled — domains dead (ECONNREFUSED/404)
+
+        # fetch_recruitee_all disabled — careers.recruitee.com domain retired
 
         # Direct company career pages (political tech, think tanks, gov-adjacent)
         futures.append(ex.submit(fetch_career_pages_all))
@@ -3260,9 +3363,8 @@ def fetch_all_jobs(queries: list, watchlist: list = None) -> dict:
         if watchlist:
             futures.append(ex.submit(fetch_custom_companies, watchlist))
 
-        # New broad sources (free, no key)
-        futures.append(ex.submit(fetch_indeed, queries))
-        futures.append(ex.submit(fetch_dice, queries))
+        # fetch_indeed disabled — RSS feeds shut down (404)
+        # fetch_dice disabled — 403 bot-blocked
 
         # New broad sources (require API keys — no-ops if key absent)
         if _os.environ.get('JSEARCH_API_KEY'):

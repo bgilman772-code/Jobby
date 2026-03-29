@@ -10,6 +10,8 @@
         --brand-light: #eef3fb;
         --green: #1a7a2a;
         --green-light: #e8f5eb;
+        --amber: #b36000;
+        --amber-light: #fff8e8;
         --text: #1a1a1a;
         --text-2: #555;
         --text-3: #888;
@@ -20,255 +22,290 @@
         --radius: 8px;
       }
       * { box-sizing: border-box; }
-      body { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
-             margin: 0; background: var(--bg); color: var(--text); }
+      body { font-family: system-ui,-apple-system,'Segoe UI',sans-serif;
+             margin:0; background:var(--bg); color:var(--text); }
 
       /* ── Top bar ── */
-      .topbar { background: var(--brand); color: white; padding: 0 1.5rem;
-                height: 52px; display: flex; align-items: center; gap: 1rem; }
-      .topbar a { color: rgba(255,255,255,0.72); text-decoration: none; font-size: 0.85rem;
-                  font-weight: 500; transition: color 0.15s; }
-      .topbar a:hover { color: white; }
-      .topbar h1 { margin: 0; font-size: 1.05rem; font-weight: 600; flex: 1; letter-spacing: -0.01em; }
+      .topbar { background:var(--brand); color:white; padding:0 1.5rem;
+                height:52px; display:flex; align-items:center; gap:1rem; }
+      .topbar h1 { margin:0; font-size:1rem; font-weight:600; flex:1; letter-spacing:-0.01em; }
+      .topbar a { color:rgba(255,255,255,0.75); text-decoration:none; font-size:0.83rem;
+                  font-weight:500; padding:5px 10px; border-radius:4px; transition:all 0.15s; }
+      .topbar a:hover { color:white; background:rgba(255,255,255,0.12); }
 
       /* ── Layout ── */
-      .layout { display: flex; max-width: 1260px; margin: 1.5rem auto; gap: 1.5rem; padding: 0 1rem; }
+      .layout { display:flex; max-width:1280px; margin:1.5rem auto; gap:1.5rem; padding:0 1.25rem; }
 
       /* ── Sidebar ── */
-      .sidebar { width: 220px; flex-shrink: 0; }
-      .sidebar h3 { font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-                    color: var(--text-3); margin: 1rem 0 0.35rem; letter-spacing: 0.06em; }
-      .sidebar h3:first-child { margin-top: 0; }
-      .sidebar label { display: block; font-size: 0.86rem; margin-bottom: 0.3rem; cursor: pointer; color: var(--text-2); }
-      .sidebar select, .sidebar input[type=range], .sidebar input[type=text] {
-        width: 100%; margin-top: 0.2rem; padding: 5px 7px;
-        border: 1px solid var(--border); border-radius: 4px; font-size: 0.86rem;
-        font-family: inherit; background: white; }
-      .sidebar input:focus, .sidebar select:focus { outline: none; border-color: var(--brand-mid); }
-      .btn-filter { display: block; width: 100%; padding: 0.55rem;
-                    background: var(--brand); color: white; border: none;
-                    border-radius: 5px; cursor: pointer; margin-top: 0.9rem;
-                    font-size: 0.86rem; font-weight: 500; font-family: inherit; }
-      .btn-filter:hover { background: #16305c; }
-      .btn-clear { display: block; width: 100%; padding: 0.45rem; background: white;
-                   border: 1px solid var(--border); border-radius: 5px; cursor: pointer;
-                   margin-top: 0.4rem; font-size: 0.82rem; color: var(--text-2);
-                   text-align: center; text-decoration: none; font-family: inherit; }
-      .btn-clear:hover { background: var(--bg); }
-      .profile-meta { font-size: 0.77rem; color: var(--text-3); line-height: 1.6; margin-top: 0.2rem; }
+      .sidebar { width:230px; flex-shrink:0; }
+      .sidebar-card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+                      padding:1rem; box-shadow:var(--shadow); margin-bottom:1rem; }
+      .sidebar h3 { font-size:0.68rem; font-weight:700; text-transform:uppercase;
+                    color:var(--text-3); margin:0 0 0.65rem; letter-spacing:0.07em; }
+      .filter-group { margin-bottom:0.9rem; }
+      .filter-group:last-child { margin-bottom:0; }
+      .filter-label { font-size:0.82rem; color:var(--text-2); display:block; margin-bottom:0.3rem; font-weight:500; }
+      .filter-select, .filter-input {
+        width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:5px;
+        font-size:0.83rem; font-family:inherit; background:white; color:var(--text); }
+      .filter-select:focus, .filter-input:focus { outline:none; border-color:var(--brand-mid); }
+      .filter-range { width:100%; margin:4px 0 2px; accent-color:var(--brand-mid); }
+      .range-val { font-size:0.78rem; color:var(--brand-mid); font-weight:600; }
+      .toggle-group { display:flex; flex-direction:column; gap:0.4rem; }
+      .toggle-row { display:flex; align-items:center; gap:0.5rem; cursor:pointer; }
+      .toggle-row input[type=checkbox] { width:15px; height:15px; cursor:pointer; accent-color:var(--brand-mid); }
+      .toggle-row span { font-size:0.83rem; color:var(--text-2); }
+      .btn-reset { display:block; width:100%; padding:7px; background:transparent;
+                   border:1px solid var(--border); border-radius:5px; cursor:pointer;
+                   font-size:0.82rem; color:var(--text-2); text-align:center;
+                   font-family:inherit; margin-top:0.75rem; transition:all 0.15s; }
+      .btn-reset:hover { border-color:var(--brand-mid); color:var(--brand-mid); background:var(--brand-light); }
+
+      /* Profile card */
+      .profile-card { font-size:0.78rem; color:var(--text-2); line-height:1.65; }
+      .profile-card strong { color:var(--text); }
 
       /* ── Main ── */
-      .main { flex: 1; min-width: 0; }
-      .result-meta { color: var(--text-3); font-size: 0.78rem; margin-bottom: 0.7rem;
-                     line-height: 1.5; }
+      .main { flex:1; min-width:0; }
 
-      /* ── Sort bar ── */
-      .sort-bar { display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
-                  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-                  padding: 0.5rem 0.9rem; margin-bottom: 1rem; box-shadow: var(--shadow); }
-      .sort-bar span { font-size: 0.73rem; color: var(--text-3); font-weight: 700;
-                       text-transform: uppercase; letter-spacing: 0.05em; margin-right: 2px; }
-      .sort-btn { padding: 4px 11px; border-radius: 12px; border: 1px solid var(--border);
-                  background: var(--bg); color: var(--text-2); font-size: 0.8rem;
-                  cursor: pointer; transition: all 0.15s; white-space: nowrap;
-                  font-family: inherit; }
-      .sort-btn:hover { background: var(--brand-light); border-color: var(--brand-mid); color: var(--brand); }
-      .sort-btn.active { background: var(--brand); color: white; border-color: var(--brand); }
-      .sort-dir { font-size: 0.72rem; margin-left: 2px; }
+      /* ── Alert banners ── */
+      .alert { border-radius:var(--radius); padding:0.65rem 1rem; font-size:0.83rem;
+               margin-bottom:0.9rem; line-height:1.5; }
+      .alert-info { background:var(--brand-light); border:1px solid #b8d0f0; color:#1a3a6a; }
+      .alert-warn { background:#fff3cd; border:1px solid #ffc107; color:#664d03; }
+
+      /* ── Toolbar (sort + tier + select-all) ── */
+      .toolbar { background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+                 padding:0.6rem 1rem; margin-bottom:1rem; box-shadow:var(--shadow);
+                 display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; }
+      .toolbar-label { font-size:0.7rem; font-weight:700; text-transform:uppercase;
+                       letter-spacing:0.06em; color:var(--text-3); white-space:nowrap; }
+      .tier-btns, .sort-btns { display:flex; gap:3px; flex-wrap:wrap; }
+      .chip { padding:4px 12px; border-radius:20px; border:1px solid var(--border);
+              background:var(--bg); color:var(--text-2); font-size:0.78rem; font-weight:500;
+              cursor:pointer; font-family:inherit; transition:all 0.15s; white-space:nowrap; }
+      .chip:hover { border-color:var(--brand-mid); color:var(--brand); background:var(--brand-light); }
+      .chip.active { background:var(--brand); color:white; border-color:var(--brand); }
+      .chip.t-strong.active { background:var(--green); border-color:var(--green); }
+      .chip.t-qual.active   { background:#1a4a9a; border-color:#1a4a9a; }
+      .chip.t-reach.active  { background:#777; border-color:#777; }
+      .toolbar-divider { width:1px; height:22px; background:var(--border); flex-shrink:0; }
+      .toolbar-right { margin-left:auto; display:flex; align-items:center; gap:6px; }
+      .result-info { font-size:0.78rem; color:var(--text-3); white-space:nowrap; }
 
       /* ── Job card ── */
-      .card { background: var(--card); border-radius: var(--radius); padding: 1rem 1.2rem;
-              margin-bottom: 0.7rem; border: 1px solid var(--border); box-shadow: var(--shadow);
-              display: flex; gap: 1rem; align-items: flex-start;
-              transition: border-color 0.15s, box-shadow 0.15s; }
-      .card:hover { border-color: #a8c0e8; box-shadow: 0 2px 8px rgba(30,58,110,0.1); }
-      .card.selected { border-color: var(--brand-mid); background: var(--brand-light); }
+      .card { background:var(--card); border-radius:var(--radius); padding:1rem 1.1rem;
+              margin-bottom:0.65rem; border:1px solid var(--border); box-shadow:var(--shadow);
+              display:flex; gap:0.9rem; align-items:flex-start;
+              transition:border-color 0.15s, box-shadow 0.15s; }
+      .card:hover { border-color:#a8c0e8; box-shadow:0 2px 8px rgba(30,58,110,0.1); }
+      .card.selected { border-color:var(--brand-mid); background:var(--brand-light); }
 
-      .score-box { text-align: center; min-width: 52px; flex-shrink: 0; }
-      .score-num { font-size: 1.55rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
-      .score-label { font-size: 0.65rem; color: var(--text-3); margin-top: 2px; }
-      .score-high { color: var(--green); }
-      .score-mid  { color: #b36000; }
-      .score-low  { color: #aaa; }
+      /* Score box */
+      .score-box { text-align:center; min-width:56px; flex-shrink:0; padding-top:2px; }
+      .score-num { font-size:1.6rem; font-weight:700; line-height:1; letter-spacing:-0.03em; }
+      .score-denom { font-size:0.68rem; color:var(--text-3); margin-top:1px; }
+      .score-bar-wrap { margin-top:5px; background:#eee; border-radius:3px; height:4px; overflow:hidden; }
+      .score-bar-fill { height:100%; border-radius:3px; }
+      .score-high { color:var(--green); }
+      .score-mid  { color:var(--amber); }
+      .score-low  { color:#aaa; }
+      .fill-high { background:var(--green); }
+      .fill-mid  { background:var(--amber); }
+      .fill-low  { background:#ccc; }
 
-      .card-body { flex: 1; min-width: 0; }
-      .card-title { font-size: 1rem; font-weight: 600; line-height: 1.3; }
-      .card-title a { color: inherit; text-decoration: none; }
-      .card-title a:hover { color: var(--brand-mid); }
-      .card-sub { color: var(--text-2); font-size: 0.86rem; margin: 0.15rem 0 0.45rem; }
+      /* Card body */
+      .card-body { flex:1; min-width:0; }
+      .card-title { font-size:0.98rem; font-weight:600; line-height:1.35; }
+      .card-title a { color:inherit; text-decoration:none; }
+      .card-title a:hover { color:var(--brand-mid); text-decoration:underline; }
+      .card-sub { color:var(--text-2); font-size:0.85rem; margin:0.2rem 0 0.5rem; }
 
-      /* ── Badges ── */
-      .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 0.45rem; }
-      .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
-      .b-strong { background: var(--green-light); color: #1a5c20; }
-      .b-qual   { background: #ddeeff; color: #1a4a8a; }
-      .b-reach  { background: #f0f0f0; color: #777; }
-      .b-remote { background: #ddeeff; color: #1a4a8a; }
-      .b-dc     { background: #eaeeff; color: #2a4a9a; }
-      .b-pay    { background: var(--green-light); color: #1a5c20; }
-      .b-pay-est { background: #fdf8e4; color: #7a5e00; border: 1px dashed #c9a020; }
-      .b-nopay  { background: #fef9e7; color: #7a5e00; }
-      .b-cat    { background: #f2ecff; color: #4a1a8a; }
-      .b-pol    { background: #fff4e0; color: #8a4200; font-weight: 600; }
+      /* Badges */
+      .badges { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:0.4rem; }
+      .badge { font-size:0.7rem; padding:2px 8px; border-radius:10px; font-weight:500; white-space:nowrap; }
+      .b-strong { background:var(--green-light); color:#1a5c20; }
+      .b-qual   { background:#ddeeff; color:#1a4a8a; }
+      .b-reach  { background:#f0f0f0; color:#666; }
+      .b-remote { background:#e4f0ff; color:#1a4a8a; }
+      .b-dc     { background:#eaeeff; color:#2a4a9a; }
+      .b-pay    { background:var(--green-light); color:#1a5c20; }
+      .b-pay-est { background:#fdf8e4; color:#7a5e00; border:1px dashed #c9a020; }
+      .b-nopay  { background:#f6f6f6; color:var(--text-3); }
+      .b-cat    { background:#f2ecff; color:#4a1a8a; }
+      .b-pol    { background:#fff4e0; color:#8a4200; font-weight:600; }
+      .b-priority { background:#dbeafe; color:#1e40af; font-weight:600; }
+      .b-new { background:#dcfce7; color:#15803d; font-weight:700; font-size:0.66rem;
+               padding:2px 7px; border-radius:10px; }
 
-      .reason { font-size: 0.83rem; font-style: italic; color: var(--text-2); margin: 0.3rem 0; line-height: 1.45; }
-      .score-bar { display: flex; gap: 4px; font-size: 0.7rem; color: #777; margin-top: 0.45rem; flex-wrap: wrap; }
-      .score-bar span { background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 1px 7px; }
-      .score-bar .s-pol { background: #fff4e0; color: #8a4200; border-color: #f0c880; }
+      .reason { font-size:0.82rem; color:var(--text-2); margin:0.25rem 0; line-height:1.45; }
 
-      .actions { display: flex; gap: 5px; margin-top: 0.7rem; flex-wrap: wrap; }
-      .btn { padding: 5px 13px; border-radius: 5px; text-decoration: none; font-family: inherit;
-             font-size: 0.82rem; font-weight: 500; border: none; cursor: pointer; transition: opacity 0.15s; }
-      .btn:hover { opacity: 0.85; }
-      .btn-primary   { background: var(--brand); color: white; }
-      .btn-secondary { background: var(--bg); color: var(--text-2); border: 1px solid var(--border); }
-      .btn-secondary:hover { background: #eaedf2; opacity: 1; }
-      .btn-apply     { background: var(--green); color: white; }
-      .btn-tips      { background: white; color: var(--text-2); border: 1px solid var(--border); }
-      .btn-tips:hover { background: var(--bg); opacity: 1; }
+      /* Score breakdown chips */
+      .score-detail { display:flex; gap:4px; font-size:0.69rem; color:var(--text-3);
+                      margin-top:0.4rem; flex-wrap:wrap; }
+      .score-detail span { background:var(--bg); border:1px solid var(--border);
+                            border-radius:3px; padding:1px 7px; }
+      .sd-pol  { background:#fff4e0; color:#8a4200; border-color:#f0c880; }
+      .sd-pri  { background:#dbeafe; color:#1e40af; border-color:#93c5fd; }
 
-      /* ── Checkbox ── */
-      .card-check { display: flex; align-items: center; padding-top: 0.15rem; cursor: pointer; flex-shrink: 0; }
-      .card-check input[type=checkbox] { width: 17px; height: 17px; cursor: pointer;
-                                         accent-color: var(--brand-mid); }
+      /* Actions */
+      .actions { display:flex; gap:5px; margin-top:0.7rem; flex-wrap:wrap; align-items:center; }
+      .btn { padding:5px 13px; border-radius:5px; text-decoration:none; font-family:inherit;
+             font-size:0.8rem; font-weight:500; border:none; cursor:pointer;
+             transition:opacity 0.15s, background 0.15s; white-space:nowrap; }
+      .btn:hover { opacity:0.85; }
+      .btn-apply-now  { background:var(--green); color:white; }
+      .btn-full-app   { background:var(--brand); color:white; }
+      .btn-detail     { background:var(--bg); color:var(--text-2); border:1px solid var(--border); }
+      .btn-detail:hover { background:#eaedf2; opacity:1; }
+      .btn-tips       { background:white; color:var(--text-2); border:1px solid var(--border); }
+      .btn-tips:hover { background:var(--bg); opacity:1; }
+
+      /* Checkbox */
+      .card-check { display:flex; align-items:center; padding-top:2px; cursor:pointer; flex-shrink:0; }
+      .card-check input[type=checkbox] { width:16px; height:16px; cursor:pointer;
+                                         accent-color:var(--brand-mid); }
 
       /* ── Floating selection bar ── */
-      #selection-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 999;
-                       background: var(--brand); color: white; padding: 0.8rem 2rem;
-                       display: flex; align-items: center; gap: 1rem;
-                       box-shadow: 0 -2px 16px rgba(0,0,0,0.2); font-size: 0.92rem; }
-      .sel-apply-btn { padding: 8px 22px; background: var(--green); color: white; border: none;
-                       border-radius: 5px; cursor: pointer; font-size: 0.92rem; font-weight: 600;
-                       font-family: inherit; }
-      .sel-apply-btn:hover { background: #155e22; }
-      .sel-clear-btn { padding: 8px 14px; background: transparent; color: rgba(255,255,255,0.72);
-                       border: 1px solid rgba(255,255,255,0.4); border-radius: 5px; cursor: pointer;
-                       font-size: 0.84rem; font-family: inherit; }
-      .sel-clear-btn:hover { color: white; border-color: white; }
+      #selection-bar { position:fixed; bottom:0; left:0; right:0; z-index:999;
+                       background:var(--brand); color:white; padding:0.75rem 2rem;
+                       display:flex; align-items:center; gap:1rem;
+                       box-shadow:0 -2px 16px rgba(0,0,0,0.2); font-size:0.9rem; }
+      .sel-apply-btn { padding:7px 20px; background:var(--green); color:white; border:none;
+                       border-radius:5px; cursor:pointer; font-size:0.9rem; font-weight:600;
+                       font-family:inherit; }
+      .sel-apply-btn:hover { background:#155e22; }
+      .sel-clear-btn { padding:7px 12px; background:transparent; color:rgba(255,255,255,0.72);
+                       border:1px solid rgba(255,255,255,0.4); border-radius:5px; cursor:pointer;
+                       font-size:0.83rem; font-family:inherit; }
+      .sel-clear-btn:hover { color:white; border-color:white; }
 
-      /* ── Tier tabs ── */
-      .tier-tabs { display: flex; gap: 4px; margin-bottom: 1rem; flex-wrap: wrap; }
-      .tier-tab { padding: 6px 16px; border-radius: 20px; border: 2px solid transparent;
-                  font-size: 0.82rem; font-weight: 600; cursor: pointer; background: var(--bg);
-                  color: var(--text-2); font-family: inherit; transition: all 0.15s; }
-      .tier-tab.t-strong { color: var(--green); }
-      .tier-tab.t-strong.active { background: var(--green-light); border-color: var(--green); }
-      .tier-tab.t-qual   { color: #1a4a9a; }
-      .tier-tab.t-qual.active   { background: #ddeeff; border-color: #1a4a9a; }
-      .tier-tab.t-reach  { color: #777; }
-      .tier-tab.t-reach.active  { background: #f0f0f0; border-color: #aaa; }
-      .tier-tab.t-all    { color: var(--text); }
-      .tier-tab.t-all.active    { background: #e8e8e8; border-color: #666; }
-
-      /* ── Quick apply modal ── */
-      #qa-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-                    z-index: 1100; display: none; align-items: center; justify-content: center; }
-      #qa-overlay.open { display: flex; }
-      #qa-box { background: white; border-radius: 10px; padding: 1.6rem 1.8rem;
-                max-width: 440px; width: 92%; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-      #qa-box h2 { font-size: 1rem; margin: 0 0 0.2rem; color: var(--brand); }
-      #qa-box .qa-sub { font-size: 0.82rem; color: var(--text-3); margin-bottom: 1rem; }
-      .qa-field { margin-bottom: 0.8rem; }
-      .qa-field label { display: block; font-size: 0.82rem; color: var(--text-2); margin-bottom: 4px; font-weight: 500; }
-      .qa-field input[type=text] { width: 100%; padding: 6px 9px; border: 1px solid var(--border);
-                                   border-radius: 4px; font-size: 0.86rem; font-family: inherit; }
-      .qa-radio { display: flex; gap: 1rem; }
-      .qa-radio label { display: flex; align-items: center; gap: 4px; font-size: 0.86rem;
-                        color: var(--text); cursor: pointer; font-weight: 400; }
-      .qa-note { background: var(--brand-light); border-radius: 6px; padding: 0.55rem 0.85rem;
-                 font-size: 0.78rem; color: #333; margin-bottom: 1rem; line-height: 1.5; }
-      .qa-actions { display: flex; gap: 8px; margin-top: 1.1rem; }
-      .qa-submit { flex: 1; padding: 9px; background: var(--green); color: white; border: none;
-                   border-radius: 5px; font-size: 0.92rem; font-weight: 600; cursor: pointer;
-                   font-family: inherit; }
-      .qa-submit:hover { background: #155e22; }
-      .qa-submit:disabled { background: #aaa; cursor: default; }
-      .qa-cancel { padding: 9px 16px; background: var(--bg); color: var(--text-2); border: 1px solid var(--border);
-                   border-radius: 5px; font-size: 0.88rem; cursor: pointer; font-family: inherit; }
+      /* ── Quick Apply modal ── */
+      #qa-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45);
+                    z-index:1100; display:none; align-items:center; justify-content:center; }
+      #qa-overlay.open { display:flex; }
+      #qa-box { background:white; border-radius:10px; padding:1.6rem 1.8rem;
+                max-width:440px; width:92%; box-shadow:0 8px 32px rgba(0,0,0,0.2); }
+      #qa-box h2 { font-size:1rem; margin:0 0 0.2rem; color:var(--brand); }
+      #qa-box .qa-sub { font-size:0.82rem; color:var(--text-3); margin-bottom:1rem; }
+      .qa-field { margin-bottom:0.8rem; }
+      .qa-field label { display:block; font-size:0.82rem; color:var(--text-2); margin-bottom:4px; font-weight:500; }
+      .qa-field input[type=text] { width:100%; padding:6px 9px; border:1px solid var(--border);
+                                   border-radius:4px; font-size:0.86rem; font-family:inherit; }
+      .qa-radio { display:flex; gap:1rem; }
+      .qa-radio label { display:flex; align-items:center; gap:4px; font-size:0.86rem;
+                        color:var(--text); cursor:pointer; font-weight:400; }
+      .qa-note { background:var(--brand-light); border-radius:6px; padding:0.55rem 0.85rem;
+                 font-size:0.78rem; color:#333; margin-bottom:1rem; line-height:1.5; }
+      .qa-actions { display:flex; gap:8px; margin-top:1.1rem; }
+      .qa-submit { flex:1; padding:9px; background:var(--green); color:white; border:none;
+                   border-radius:5px; font-size:0.92rem; font-weight:600; cursor:pointer;
+                   font-family:inherit; }
+      .qa-submit:hover { background:#155e22; }
+      .qa-submit:disabled { background:#aaa; cursor:default; }
+      .qa-cancel { padding:9px 16px; background:var(--bg); color:var(--text-2); border:1px solid var(--border);
+                   border-radius:5px; font-size:0.88rem; cursor:pointer; font-family:inherit; }
 
       /* ── Tips modal ── */
-      .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-                       z-index: 1000; display: flex; align-items: center; justify-content: center; }
-      .modal-box { background: white; border-radius: 10px; padding: 1.5rem 1.8rem;
-                   max-width: 620px; width: 90%; max-height: 85vh; overflow-y: auto;
-                   box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
-      .modal-box h2 { font-size: 1rem; margin: 0 0 0.3rem; color: var(--brand); }
-      .modal-box .modal-sub { font-size: 0.82rem; color: var(--text-3); margin-bottom: 1rem; }
-      .modal-section { margin-bottom: 1rem; }
-      .modal-section h4 { font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-                          letter-spacing: 0.06em; color: var(--text-3); margin: 0 0 0.4rem; }
-      .modal-section ul { margin: 0; padding-left: 1.3rem; }
-      .modal-section li { font-size: 0.87rem; margin-bottom: 0.25rem; line-height: 1.45; }
-      .modal-section p  { font-size: 0.87rem; margin: 0; line-height: 1.45; }
-      .modal-section .kw-list { display: flex; flex-wrap: wrap; gap: 5px; }
-      .modal-section .kw { background: var(--brand-light); color: #1a4a9a; border-radius: 10px;
-                           padding: 2px 10px; font-size: 0.78rem; }
-      .modal-close { float: right; background: none; border: none; font-size: 1.1rem;
-                     cursor: pointer; color: var(--text-3); margin: -0.3rem -0.3rem 0 0;
-                     padding: 4px 8px; border-radius: 4px; }
-      .modal-close:hover { background: var(--bg); color: var(--text); }
-      .modal-loading { text-align: center; padding: 2rem; color: var(--text-3); font-size: 0.92rem; }
-      .modal-error   { color: #c00; font-size: 0.87rem; padding: 1rem 0; }
+      .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4);
+                       z-index:1000; display:flex; align-items:center; justify-content:center; }
+      .modal-box { background:white; border-radius:10px; padding:1.5rem 1.8rem;
+                   max-width:620px; width:90%; max-height:85vh; overflow-y:auto;
+                   box-shadow:0 8px 32px rgba(0,0,0,0.18); }
+      .modal-box h2 { font-size:1rem; margin:0 0 0.3rem; color:var(--brand); }
+      .modal-box .modal-sub { font-size:0.82rem; color:var(--text-3); margin-bottom:1rem; }
+      .modal-section { margin-bottom:1rem; }
+      .modal-section h4 { font-size:0.7rem; font-weight:700; text-transform:uppercase;
+                          letter-spacing:0.06em; color:var(--text-3); margin:0 0 0.4rem; }
+      .modal-section ul { margin:0; padding-left:1.3rem; }
+      .modal-section li { font-size:0.87rem; margin-bottom:0.25rem; line-height:1.45; }
+      .modal-section p  { font-size:0.87rem; margin:0; line-height:1.45; }
+      .modal-section .kw-list { display:flex; flex-wrap:wrap; gap:5px; }
+      .modal-section .kw { background:var(--brand-light); color:#1a4a9a; border-radius:10px;
+                           padding:2px 10px; font-size:0.78rem; }
+      .modal-close { float:right; background:none; border:none; font-size:1.1rem;
+                     cursor:pointer; color:var(--text-3); margin:-0.3rem -0.3rem 0 0;
+                     padding:4px 8px; border-radius:4px; }
+      .modal-close:hover { background:var(--bg); color:var(--text); }
+      .modal-loading { text-align:center; padding:2rem; color:var(--text-3); font-size:0.92rem; }
+      .modal-error   { color:#c00; font-size:0.87rem; padding:1rem 0; }
+
+      @media (max-width:740px) {
+        .layout { flex-direction:column; }
+        .sidebar { width:100%; }
+      }
     </style>
   </head>
   <body>
     <div class="topbar">
-      <h1>Matched Jobs &mdash; <span id="result-count">{{ jobs|length }}</span> results</h1>
+      <h1>Matched Jobs &mdash; <span id="result-count">{{ jobs|length }}</span> shown
+        {% set new_cnt = jobs|selectattr('_is_new')|list|length %}
+        {% if new_cnt < jobs|length %}
+          <span style="font-size:0.75rem;font-weight:400;opacity:0.8;margin-left:6px">
+            ({{ new_cnt }} new since last search)
+          </span>
+        {% endif %}
+      </h1>
       <a href="/">Home</a>
-      <a href="/find-matches">Re-run Search</a>
+      <a href="/find-matches">New Search</a>
       <a href="/saved-jobs">My Applications</a>
+      {% if is_saved_view %}
+      <form method="POST" action="/purge-dead-jobs" style="margin:0"
+            onsubmit="this.querySelector('button').textContent='Checking…';this.querySelector('button').disabled=true">
+        <button type="submit" style="background:transparent;border:1px solid rgba(255,255,255,0.4);
+                color:rgba(255,255,255,0.75);border-radius:4px;padding:4px 10px;cursor:pointer;
+                font-size:0.78rem;font-family:inherit"
+                title="Check all saved job URLs and remove dead ones">
+          Remove Dead Links
+        </button>
+      </form>
+      {% endif %}
+      <form method="POST" action="/clear-seen-jobs" style="margin:0">
+        <button type="submit" style="background:transparent;border:1px solid rgba(255,255,255,0.4);
+                color:rgba(255,255,255,0.75);border-radius:4px;padding:4px 10px;cursor:pointer;
+                font-size:0.78rem;font-family:inherit"
+                title="Reset seen history so all jobs appear as new again">
+          Reset Seen
+        </button>
+      </form>
     </div>
 
     <div class="layout">
 
-      <!-- ── Sidebar filters ── -->
+      <!-- ── Sidebar ── -->
       <div class="sidebar">
-        <form method="get" action="/match-results/{{ key }}">
-          <h3>Filter</h3>
+        <div class="sidebar-card">
+          <h3>Filter Results</h3>
 
-          <label>Category
-            <select name="category">
+          <div class="filter-group">
+            <label class="filter-label">Category</label>
+            <select class="filter-select" id="f-category" onchange="applyFilters()">
               <option value="">All categories</option>
               {% for cat in categories %}
                 <option value="{{ cat }}" {% if filters.category == cat %}selected{% endif %}>{{ cat }}</option>
               {% endfor %}
             </select>
-          </label>
+          </div>
 
-          <label>Company
-            <input type="text" name="company" value="{{ filters.get('company','') }}"
-                   placeholder="Search company…"/>
-          </label>
+          <div class="filter-group">
+            <label class="filter-label">Company name</label>
+            <input class="filter-input" id="f-company" type="text"
+                   placeholder="Type to filter…" oninput="applyFilters()"
+                   value="{{ filters.get('company','') }}"/>
+          </div>
 
-          <label style="margin-top:0.6rem">
-            <input type="checkbox" name="remote_only" value="1"
-              {% if filters.remote_only == '1' %}checked{% endif %}/>
-            Remote only
-          </label>
+          <div class="filter-group">
+            <label class="filter-label">
+              Min score: <span class="range-val" id="score-val-lbl">{{ filters.min_score }}</span>+
+            </label>
+            <input class="filter-range" id="f-minscore" type="range" min="0" max="100" step="5"
+                   value="{{ filters.min_score }}"
+                   oninput="document.getElementById('score-val-lbl').textContent=this.value; applyFilters()"/>
+          </div>
 
-          <label style="margin-top:0.4rem">
-            <input type="checkbox" name="pol_only" value="1"
-              {% if filters.get('pol_only') == '1' %}checked{% endif %}/>
-            Political/Gov tech only
-          </label>
-
-          <label style="margin-top:0.4rem">
-            <input type="checkbox" name="dc_only" value="1"
-              {% if filters.get('dc_only') == '1' %}checked{% endif %}/>
-            DC metro only
-          </label>
-
-          <h3>Min ranking score</h3>
-          <label>
-            <input type="range" name="min_score" min="0" max="100" step="5"
-              value="{{ filters.min_score }}"
-              oninput="document.getElementById('score_val').textContent=this.value"/>
-            <span id="score_val">{{ filters.min_score }}</span>+
-          </label>
-
-          <h3>Min salary</h3>
-          <label>
-            <select name="min_pay">
+          <div class="filter-group">
+            <label class="filter-label">Min salary</label>
+            <select class="filter-select" id="f-minpay" onchange="applyFilters()">
               <option value="0"      {% if filters.min_pay == 0 %}selected{% endif %}>Any</option>
               <option value="100000" {% if filters.min_pay == 100000 %}selected{% endif %}>$100K+</option>
               <option value="125000" {% if filters.min_pay == 125000 %}selected{% endif %}>$125K+</option>
@@ -277,81 +314,115 @@
               <option value="200000" {% if filters.min_pay == 200000 %}selected{% endif %}>$200K+</option>
               <option value="250000" {% if filters.min_pay == 250000 %}selected{% endif %}>$250K+</option>
             </select>
-          </label>
+          </div>
 
-          <button class="btn-filter" type="submit">Apply Filters</button>
-          <a class="btn-clear" href="/match-results/{{ key }}">Clear all</a>
-        </form>
+          <div class="filter-group">
+            <div class="toggle-group">
+              <label class="toggle-row">
+                <input type="checkbox" id="f-remote" onchange="applyFilters()"
+                       {% if filters.remote_only == '1' %}checked{% endif %}/>
+                <span>Remote only</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" id="f-pol" onchange="applyFilters()"
+                       {% if filters.get('pol_only') == '1' %}checked{% endif %}/>
+                <span>Political/Gov tech only</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" id="f-dc" onchange="applyFilters()"
+                       {% if filters.get('dc_only') == '1' %}checked{% endif %}/>
+                <span>DC metro only</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" id="f-priority" onchange="applyFilters()"/>
+                <span>Priority companies only</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" id="f-new" onchange="applyFilters()"/>
+                <span>New only (not seen before)</span>
+              </label>
+              <label class="toggle-row">
+                <input type="checkbox" id="f-us" onchange="applyFilters()"/>
+                <span>US-based only</span>
+              </label>
+            </div>
+          </div>
+
+          <button class="btn-reset" onclick="resetFilters()">Reset filters</button>
+        </div>
 
         {% if profile %}
-        <hr style="margin:1.2rem 0 0.8rem;border:none;border-top:1px solid var(--border)"/>
-        <div class="profile-meta">
-          <strong>Profile used:</strong><br/>
-          {{ profile.get('seniority','').title() }},
-          ~{{ profile.get('experience_years','?') }} yrs<br/>
-          <em>{{ profile.get('target_roles',[])|join(', ') }}</em>
+        <div class="sidebar-card profile-card">
+          <h3>Profile Used</h3>
+          <strong>{{ profile.get('seniority','').title() }}</strong>,
+          ~{{ profile.get('experience_years','?') }} yrs exp<br/>
+          <span style="color:var(--text-3)">{{ profile.get('target_roles',[])|join(', ') }}</span>
         </div>
         {% endif %}
       </div>
 
-      <!-- ── Job list ── -->
+      <!-- ── Main ── -->
       <div class="main">
-        <div style="background:var(--brand-light);border:1px solid #b8d0f0;border-radius:var(--radius);
-                    padding:0.75rem 1rem;margin-bottom:0.9rem;font-size:0.83rem;color:#1a3a6a;line-height:1.6">
-          <strong>How to apply:</strong> Browse the results below.
-          Click <strong>Review &amp; Apply</strong> to edit your cover letter and auto-fill the application form.
-          Use <strong>Quick Apply</strong> to skip straight to auto-fill with an AI-generated letter.
-          Select multiple jobs and click <strong>Prepare Applications</strong> to queue them.
-        </div>
-        <div class="result-meta">
-          Scoring: Skills match (70%) + Salary (30%) + Political/Gov Tech (+5 bonus)
-          &bull; Filters: $100K+ &bull; Remote or DC metro, Miami, or Austin (under $200K)
-        </div>
 
-        <!-- Sort bar -->
-        <div class="sort-bar">
-          <span>Sort</span>
-          <button class="sort-btn active" onclick="sortJobs('score',  'desc', this)">Score <span class="sort-dir">↓</span></button>
-          <button class="sort-btn"        onclick="sortJobs('salary', 'desc', this)">Salary <span class="sort-dir">↓</span></button>
-          <button class="sort-btn"        onclick="sortJobs('skills', 'desc', this)">Skills <span class="sort-dir">↓</span></button>
-          <button class="sort-btn"        onclick="sortJobs('company','asc',  this)">Company <span class="sort-dir">↑</span></button>
-          <button class="sort-btn"        onclick="sortJobs('remote', 'desc', this)">Remote First</button>
-          <button class="sort-btn"        onclick="sortJobs('dc',     'desc', this)">DC First</button>
-          <button class="sort-btn"        onclick="sortJobs('pol',    'desc', this)">Gov/Pol First</button>
-          <button class="sort-btn"        onclick="sortJobs('cat',    'asc',  this)">Job Type <span class="sort-dir">↑</span></button>
-          <button class="sort-btn" style="margin-left:auto"
-                  onclick="toggleSelectAll()">Select All</button>
-        </div>
-
-        <!-- Tier tabs -->
-        <div class="tier-tabs">
-          <button class="tier-tab t-all active" onclick="filterTier('all', this)">
-            All <span id="cnt-all">{{ jobs|length }}</span>
-          </button>
-          <button class="tier-tab t-strong" onclick="filterTier('Strongly Qualified', this)">
-            Strongly Qualified <span id="cnt-strong">{{ jobs|selectattr('qualification_tier','equalto','Strongly Qualified')|list|length }}</span>
-          </button>
-          <button class="tier-tab t-qual" onclick="filterTier('Qualified', this)">
-            Qualified <span id="cnt-qual">{{ jobs|selectattr('qualification_tier','equalto','Qualified')|list|length }}</span>
-          </button>
-          <button class="tier-tab t-reach" onclick="filterTier('Reach', this)">
-            Reach <span id="cnt-reach">{{ jobs|selectattr('qualification_tier','equalto','Reach')|list|length }}</span>
-          </button>
-        </div>
-
-        {% if not jobs %}
-          <p style="color:var(--text-3)">No jobs match the current filters. Try adjusting them.</p>
+        {% if jobs and jobs[0].get('_gemini_error') %}
+          <div class="alert alert-warn">
+            <strong>AI scoring unavailable</strong> &mdash; Gemini API error:
+            {{ jobs[0]['_gemini_error'][:120] }}<br/>
+            Match scores may be inaccurate. Update your <code>GEMINI_API_KEY</code> in <code>.env</code>.
+          </div>
         {% endif %}
+
+        <div class="alert alert-info">
+          <strong>How to apply:</strong>
+          Click <strong>Quick Apply</strong> to auto-fill instantly in the background, or
+          <strong>Auto-Fill</strong> to edit the cover letter first then auto-fill.
+          Check boxes to queue multiple jobs for batch apply.
+        </div>
+
+        <!-- ── Toolbar ── -->
+        <div class="toolbar">
+          <span class="toolbar-label">View</span>
+          <div class="tier-btns">
+            <button class="chip t-all active" onclick="setTier('all', this)">
+              All <span id="cnt-all">{{ jobs|length }}</span>
+            </button>
+            <button class="chip t-strong" onclick="setTier('Strongly Qualified', this)">
+              Strong <span id="cnt-strong">{{ jobs|selectattr('qualification_tier','equalto','Strongly Qualified')|list|length }}</span>
+            </button>
+            <button class="chip t-qual" onclick="setTier('Qualified', this)">
+              Qualified <span id="cnt-qual">{{ jobs|selectattr('qualification_tier','equalto','Qualified')|list|length }}</span>
+            </button>
+            <button class="chip t-reach" onclick="setTier('Reach', this)">
+              Reach <span id="cnt-reach">{{ jobs|selectattr('qualification_tier','equalto','Reach')|list|length }}</span>
+            </button>
+          </div>
+
+          <div class="toolbar-divider"></div>
+
+          <span class="toolbar-label">Sort</span>
+          <div class="sort-btns">
+            <button class="chip active" onclick="sortJobs('score','desc',this)">Score</button>
+            <button class="chip"        onclick="sortJobs('salary','desc',this)">Salary</button>
+            <button class="chip"        onclick="sortJobs('skills','desc',this)">Skills</button>
+            <button class="chip"        onclick="sortJobs('company','asc',this)">Company</button>
+          </div>
+
+          <div class="toolbar-right">
+            <span class="result-info" id="vis-count-label"></span>
+            <button class="chip" onclick="toggleSelectAll()">Select all</button>
+          </div>
+        </div>
 
         <form id="batch-form" method="POST" action="/prepare-batch">
           <input type="hidden" name="cache_key" value="{{ key }}"/>
           <div id="job-list">
             {% for job in jobs %}
               {% set rs = job.get('ranking_score', 0) %}
-              {% set sc = 'high' if rs >= 75 else ('mid' if rs >= 50 else 'low') %}
+              {% set sc = 'high' if rs >= 80 else ('mid' if rs >= 50 else 'low') %}
+              {% set sal_max = job.get('salary_max', 0) or 0 %}
               <div class="card"
                    data-score="{{ rs }}"
-                   data-salary="{{ job.get('salary_max', 0) }}"
+                   data-salary="{{ sal_max }}"
                    data-skills="{{ job.get('skills_score', 0) }}"
                    data-company="{{ (job.get('company_name') or job.get('company',''))|lower }}"
                    data-remote="{{ '1' if job.get('is_remote') else '0' }}"
@@ -359,20 +430,28 @@
                    data-pol="{{ '1' if job.get('political_tech') else '0' }}"
                    data-cat="{{ job.get('category','Other') }}"
                    data-tier="{{ job.get('qualification_tier','Qualified') }}"
+                   data-priority="{{ '1' if job.get('company_bonus') else '0' }}"
+                   data-new="{{ '1' if job.get('_is_new', True) else '0' }}"
+                   data-us="{{ '1' if job.get('_is_us', 1) else '0' }}"
                    data-idx="{{ job.get('_orig_idx', loop.index0) }}">
-                <!-- Checkbox -->
                 <label class="card-check" title="Select for bulk apply">
-                  <input type="checkbox" name="selected_jobs" value="{{ job.get('_orig_idx', loop.index0) }}"
+                  <input type="checkbox" name="selected_jobs"
+                         value="{{ job.get('_orig_idx', loop.index0) }}"
                          onchange="updateSelectionBar()"/>
                 </label>
                 <div class="score-box">
                   <div class="score-num score-{{ sc }}">{{ rs }}</div>
-                  <div class="score-label">/ 105</div>
+                  <div class="score-denom">/ 120</div>
+                  <div class="score-bar-wrap">
+                    <div class="score-bar-fill fill-{{ sc }}" style="width:{{ [rs, 120]|min * 100 // 120 }}%"></div>
+                  </div>
                 </div>
                 <div class="card-body">
                   <div class="card-title">
                     {% if job.get('url') %}
-                      <a href="{{ job.get('url') }}" target="_blank" rel="noopener">{{ job.get('title','') }} ↗</a>
+                      <a href="{{ job.get('url') }}" target="_blank" rel="noopener">
+                        {{ job.get('title','') }} ↗
+                      </a>
                     {% else %}
                       {{ job.get('title','') }}
                     {% endif %}
@@ -380,9 +459,12 @@
                   <div class="card-sub">
                     {{ job.get('company_name') or job.get('company','') }}
                     {% set loc = job.get('candidate_required_location') or job.get('location','') %}
-                    {% if loc %} &mdash; {{ loc }}{% endif %}
+                    {% if loc %}&nbsp;&mdash;&nbsp;{{ loc }}{% endif %}
                   </div>
                   <div class="badges">
+                    {% if job.get('_is_new', True) %}
+                      <span class="b-new">NEW</span>
+                    {% endif %}
                     {% set tier = job.get('qualification_tier','Qualified') %}
                     {% if tier == 'Strongly Qualified' %}
                       <span class="badge b-strong">Strongly Qualified</span>
@@ -391,8 +473,11 @@
                     {% else %}
                       <span class="badge b-qual">Qualified</span>
                     {% endif %}
+                    {% if job.get('company_bonus') %}
+                      <span class="badge b-priority">&#9733; Watchlist</span>
+                    {% endif %}
                     {% if job.get('political_tech') %}
-                      <span class="badge b-pol">Pol/Gov Tech</span>
+                      <span class="badge b-pol">Gov/Pol Tech</span>
                     {% endif %}
                     {% if job.get('is_remote') %}
                       <span class="badge b-remote">Remote</span>
@@ -413,41 +498,53 @@
                     <span class="badge b-cat">{{ job.get('category','Other') }}</span>
                   </div>
                   {% if job.get('match_reason') %}
-                    <div class="reason">"{{ job.get('match_reason') }}"</div>
+                    <div class="reason"><em>{{ job.get('match_reason') }}</em></div>
+                  {% else %}
+                    {% set raw_desc = job.get('description') or job.get('contents') or '' %}
+                    {% set snippet = raw_desc | striptags | truncate(160, true, '…') %}
+                    {% if snippet and snippet|length > 20 %}
+                      <div class="reason">{{ snippet }}</div>
+                    {% endif %}
                   {% endif %}
-                  <div class="score-bar">
+                  <div class="score-detail">
                     <span>Skills {{ job.get('skills_score',0) }}/70</span>
                     <span>Pay {{ job.get('pay_score',0) }}/30</span>
-                    {% if job.get('political_bonus') %}
-                      <span class="s-pol">+{{ job.get('political_bonus') }} pol bonus</span>
+                    {% if job.get('company_bonus') %}
+                      <span class="sd-pri">+{{ job.get('company_bonus') }} watchlist</span>
                     {% endif %}
                   </div>
                   <div class="actions">
                     {% set orig_idx = job.get('_orig_idx', loop.index0) %}
                     {% if job.get('url') %}
-                      <button class="btn btn-apply" type="button"
+                      <button class="btn btn-apply-now" type="button"
                               data-key="{{ key }}" data-idx="{{ orig_idx }}"
                               data-title="{{ job.get('title','') | e }}"
                               data-company="{{ (job.get('company_name') or job.get('company','')) | e }}"
-                              onclick="openQuickApply(this)">
+                              onclick="openQuickApply(this)"
+                              title="Auto-fill and submit in the background">
                         Quick Apply
                       </button>
+                      <a class="btn btn-full-app" href="/preview/{{ key }}/{{ orig_idx }}"
+                         target="_blank" rel="noopener"
+                         title="Edit cover letter then auto-fill in browser">
+                        Auto-Fill
+                      </a>
+                    {% else %}
+                      <a class="btn btn-full-app" href="/preview/{{ key }}/{{ orig_idx }}"
+                         target="_blank" rel="noopener">
+                        Auto-Fill
+                      </a>
                     {% endif %}
-                    <a class="btn btn-primary"   href="/preview/{{ key }}/{{ orig_idx }}">Review &amp; Apply</a>
-                    <a class="btn btn-secondary" href="/job/{{ key }}/{{ orig_idx }}">Details</a>
-                    <button class="btn btn-tips" type="button"
-                            data-key="{{ key }}" data-idx="{{ orig_idx }}"
-                            data-title="{{ job.get('title','') | e }}"
-                            data-company="{{ (job.get('company_name') or job.get('company','')) | e }}"
-                            onclick="showTips(this)">
-                      Resume Tips
-                    </button>
                   </div>
                 </div>
               </div>
             {% endfor %}
           </div>
         </form>
+
+        {% if not jobs %}
+          <p style="color:var(--text-3)">No jobs match the current filters. Try adjusting them in the sidebar.</p>
+        {% endif %}
       </div>
     </div>
 
@@ -456,11 +553,10 @@
       <div id="qa-box">
         <h2 id="qa-title">Quick Apply</h2>
         <div class="qa-sub" id="qa-sub"></div>
-
         <div class="qa-note">
-          A tailored cover letter will be generated with AI and the application form will open pre-filled in a browser window.
+          An AI cover letter tailored to this role will be generated, then the application form
+          opens pre-filled in your browser.
         </div>
-
         <form id="qa-form" method="post">
           <div class="qa-field">
             <label>Authorized to work in the US?</label>
@@ -494,7 +590,7 @@
       </div>
     </div>
 
-    <!-- ── Tips modal ── -->
+    <!-- ── Resume Tips modal ── -->
     <div id="tips-modal" class="modal-overlay" style="display:none" onclick="closeTipsModal(event)">
       <div class="modal-box">
         <button class="modal-close" onclick="document.getElementById('tips-modal').style.display='none'">&#215;</button>
@@ -512,138 +608,146 @@
       <button class="sel-apply-btn" onclick="document.getElementById('batch-form').submit()">
         Prepare Applications &rarr;
       </button>
+      <button class="sel-apply-btn" style="background:#1a5c8a" id="save-sel-btn" onclick="saveSelected()">
+        &#9733; Save Jobs
+      </button>
       <button class="sel-clear-btn" onclick="clearSelection()">Clear</button>
     </div>
 
     <script>
       const CACHE_KEY = "{{ key }}";
       let activeTier = 'all';
+      let allSelected = false;
+      const TOTAL = {{ jobs|length }};
 
       // ── Quick Apply modal ──────────────────────────────────────────────────
       function openQuickApply(btn) {
-        const cacheKey = btn.dataset.key;
-        const idx = btn.dataset.idx;
-        const title = btn.dataset.title;
-        const company = btn.dataset.company;
-        document.getElementById('qa-title').textContent = title || 'Quick Apply';
-        document.getElementById('qa-sub').textContent = company ? '@ ' + company : '';
-        document.getElementById('qa-form').action = '/quick-apply/' + cacheKey + '/' + idx;
+        document.getElementById('qa-title').textContent = btn.dataset.title || 'Quick Apply';
+        document.getElementById('qa-sub').textContent = btn.dataset.company ? '@ ' + btn.dataset.company : '';
+        document.getElementById('qa-form').action = '/quick-apply/' + btn.dataset.key + '/' + btn.dataset.idx;
         document.getElementById('qa-overlay').classList.add('open');
       }
-
-      function closeQA() {
-        document.getElementById('qa-overlay').classList.remove('open');
-      }
-
-      function closeQAIfBg(event) {
-        if (event.target === document.getElementById('qa-overlay')) closeQA();
-      }
-
+      function closeQA() { document.getElementById('qa-overlay').classList.remove('open'); }
+      function closeQAIfBg(e) { if (e.target === document.getElementById('qa-overlay')) closeQA(); }
       document.getElementById('qa-form').addEventListener('submit', function() {
         var btn = document.getElementById('qa-submit-btn');
         btn.disabled = true;
         btn.textContent = 'Generating letter & opening browser\u2026';
       });
 
-      // ── Tier filtering ──────────────────────────────────────────────────────
-      function filterTier(tier, btn) {
-        activeTier = tier;
-        document.querySelectorAll('.tier-tab').forEach(b => b.classList.remove('active'));
-        if (btn) btn.classList.add('active');
+      // ── Unified filter + tier ─────────────────────────────────────────────
+      function applyFilters() {
+        const cat      = document.getElementById('f-category').value.toLowerCase();
+        const company  = document.getElementById('f-company').value.toLowerCase().trim();
+        const minScore = parseInt(document.getElementById('f-minscore').value) || 0;
+        const minPay   = parseInt(document.getElementById('f-minpay').value)   || 0;
+        const remOnly  = document.getElementById('f-remote').checked;
+        const polOnly  = document.getElementById('f-pol').checked;
+        const dcOnly   = document.getElementById('f-dc').checked;
+        const priOnly  = document.getElementById('f-priority').checked;
+        const newOnly  = document.getElementById('f-new').checked;
+        const usOnly   = document.getElementById('f-us').checked;
 
         let visible = 0;
         document.querySelectorAll('#job-list .card').forEach(card => {
-          const match = tier === 'all' || card.dataset.tier === tier;
-          card.style.display = match ? '' : 'none';
-          if (match) visible++;
+          const tierMatch  = activeTier === 'all' || card.dataset.tier === activeTier;
+          const catMatch   = !cat     || card.dataset.cat.toLowerCase() === cat;
+          const coMatch    = !company || card.dataset.company.includes(company);
+          const scoreMatch = parseInt(card.dataset.score) >= minScore;
+          const payMatch   = !minPay  || parseInt(card.dataset.salary || 0) >= minPay;
+          const remMatch   = !remOnly  || card.dataset.remote === '1';
+          const polMatch   = !polOnly  || card.dataset.pol    === '1';
+          const dcMatch    = !dcOnly   || card.dataset.dc     === '1';
+          const priMatch   = !priOnly  || card.dataset.priority === '1';
+          const newMatch   = !newOnly  || card.dataset.new    === '1';
+          const usMatch    = !usOnly   || card.dataset.us     === '1';
+
+          const show = tierMatch && catMatch && coMatch && scoreMatch && payMatch
+                       && remMatch && polMatch && dcMatch && priMatch && newMatch && usMatch;
+          card.style.display = show ? '' : 'none';
+          if (show) visible++;
         });
         document.getElementById('result-count').textContent = visible;
+        document.getElementById('vis-count-label').textContent =
+          visible === TOTAL ? '' : `${visible} of ${TOTAL}`;
       }
 
-      // ── Selection ──────────────────────────────────────────────────────────
+      function setTier(tier, btn) {
+        activeTier = tier;
+        document.querySelectorAll('.tier-btns .chip').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        applyFilters();
+      }
+
+      function resetFilters() {
+        document.getElementById('f-category').value = '';
+        document.getElementById('f-company').value  = '';
+        document.getElementById('f-minscore').value = '0';
+        document.getElementById('score-val-lbl').textContent = '0';
+        document.getElementById('f-minpay').value   = '0';
+        document.getElementById('f-remote').checked   = false;
+        document.getElementById('f-pol').checked      = false;
+        document.getElementById('f-dc').checked       = false;
+        document.getElementById('f-priority').checked = false;
+        document.getElementById('f-new').checked      = false;
+        document.getElementById('f-us').checked       = false;
+        activeTier = 'all';
+        document.querySelectorAll('.tier-btns .chip').forEach(b => b.classList.remove('active'));
+        document.querySelector('.tier-btns .chip').classList.add('active');
+        applyFilters();
+      }
+
+      // ── Sort ──────────────────────────────────────────────────────────────
+      function sortJobs(field, dir, btn) {
+        document.querySelectorAll('.sort-btns .chip').forEach(b => b.classList.remove('active'));
+        if (btn) btn.classList.add('active');
+        const list = document.getElementById('job-list');
+        const cards = Array.from(list.querySelectorAll('.card'));
+        cards.sort((a, b) => {
+          switch (field) {
+            case 'score':   return parseInt(b.dataset.score)  - parseInt(a.dataset.score);
+            case 'salary':  return parseInt(b.dataset.salary) - parseInt(a.dataset.salary);
+            case 'skills':  return parseInt(b.dataset.skills) - parseInt(a.dataset.skills);
+            case 'company':
+              return a.dataset.company.localeCompare(b.dataset.company);
+            default: return 0;
+          }
+        });
+        cards.forEach(c => list.appendChild(c));
+        applyFilters();
+      }
+
+      // ── Selection ─────────────────────────────────────────────────────────
       function updateSelectionBar() {
         const checked = document.querySelectorAll('input[name="selected_jobs"]:checked');
-        const bar = document.getElementById('selection-bar');
         document.getElementById('sel-count').textContent = checked.length;
-        bar.style.display = checked.length > 0 ? 'flex' : 'none';
+        document.getElementById('selection-bar').style.display = checked.length > 0 ? 'flex' : 'none';
         document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
         checked.forEach(cb => cb.closest('.card').classList.add('selected'));
       }
-
       function clearSelection() {
         document.querySelectorAll('input[name="selected_jobs"]').forEach(cb => cb.checked = false);
         updateSelectionBar();
       }
-
-      let allSelected = false;
       function toggleSelectAll() {
         allSelected = !allSelected;
-        document.querySelectorAll('input[name="selected_jobs"]').forEach(cb => cb.checked = allSelected);
+        document.querySelectorAll('input[name="selected_jobs"]').forEach(cb => {
+          // Only toggle visible cards
+          if (cb.closest('.card').style.display !== 'none') cb.checked = allSelected;
+        });
         updateSelectionBar();
       }
 
-      // ── Sort ───────────────────────────────────────────────────────────────
-      function sortJobs(field, dir, btn) {
-        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
-        if (btn) btn.classList.add('active');
-
-        const list = document.getElementById('job-list');
-        const cards = Array.from(list.querySelectorAll('.card'));
-
-        cards.sort((a, b) => {
-          let va, vb;
-          switch (field) {
-            case 'score':
-              va = parseInt(a.dataset.score)  || 0; vb = parseInt(b.dataset.score)  || 0;
-              return dir === 'desc' ? vb - va : va - vb;
-            case 'salary':
-              va = parseInt(a.dataset.salary) || 0; vb = parseInt(b.dataset.salary) || 0;
-              return dir === 'desc' ? vb - va : va - vb;
-            case 'skills':
-              va = parseInt(a.dataset.skills) || 0; vb = parseInt(b.dataset.skills) || 0;
-              return dir === 'desc' ? vb - va : va - vb;
-            case 'company':
-              va = a.dataset.company || ''; vb = b.dataset.company || '';
-              return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
-            case 'cat':
-              va = a.dataset.cat || ''; vb = b.dataset.cat || '';
-              if (va === vb) return parseInt(b.dataset.score) - parseInt(a.dataset.score);
-              return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
-            case 'remote':
-              va = parseInt(a.dataset.remote) || 0; vb = parseInt(b.dataset.remote) || 0;
-              if (va !== vb) return vb - va;
-              return parseInt(b.dataset.score) - parseInt(a.dataset.score);
-            case 'dc':
-              va = parseInt(a.dataset.dc) || 0; vb = parseInt(b.dataset.dc) || 0;
-              if (va !== vb) return vb - va;
-              return parseInt(b.dataset.score) - parseInt(a.dataset.score);
-            case 'pol':
-              va = parseInt(a.dataset.pol) || 0; vb = parseInt(b.dataset.pol) || 0;
-              if (va !== vb) return vb - va;
-              return parseInt(b.dataset.score) - parseInt(a.dataset.score);
-            default: return 0;
-          }
-        });
-
-        cards.forEach(c => list.appendChild(c));
-        // Re-apply tier filter visibility after sort
-        filterTier(activeTier, null);
-      }
-
-      // ── Resume Tips modal ──────────────────────────────────────────────────
+      // ── Resume Tips modal ─────────────────────────────────────────────────
       function showTips(btn) {
-        const cacheKey = btn.dataset.key;
-        const idx = btn.dataset.idx;
-        const title = btn.dataset.title;
-        const company = btn.dataset.company;
         const modal = document.getElementById('tips-modal');
-        document.getElementById('tips-job-title').textContent = title || 'Resume Tips';
-        document.getElementById('tips-job-sub').textContent = company ? `@ ${company}` : '';
+        document.getElementById('tips-job-title').textContent = btn.dataset.title || 'Resume Tips';
+        document.getElementById('tips-job-sub').textContent = btn.dataset.company ? `@ ${btn.dataset.company}` : '';
         document.getElementById('tips-content').innerHTML =
           '<div class="modal-loading">Analyzing your resume against this job&hellip;</div>';
         modal.style.display = 'flex';
 
-        fetch(`/resume-feedback/${cacheKey}/${idx}`)
+        fetch(`/resume-feedback/${btn.dataset.key}/${btn.dataset.idx}`)
           .then(r => r.json())
           .then(data => {
             if (data.error) {
@@ -652,53 +756,67 @@
               return;
             }
             let html = '';
-
-            if (data.tier_reasoning) {
-              html += `<div class="modal-section"><p><em>${data.tier_reasoning}</em></p></div>`;
-            }
-
-            if (data.strengths && data.strengths.length) {
+            if (data.tier_reasoning) html += `<div class="modal-section"><p><em>${data.tier_reasoning}</em></p></div>`;
+            if (data.strengths?.length) {
               html += `<div class="modal-section"><h4>Strengths for This Role</h4><ul>`;
               data.strengths.forEach(s => { html += `<li>${s}</li>`; });
               html += `</ul></div>`;
             }
-
-            if (data.gaps && data.gaps.length) {
+            if (data.gaps?.length) {
               html += `<div class="modal-section"><h4>Gaps to Address</h4><ul>`;
               data.gaps.forEach(g => { html += `<li>${g}</li>`; });
               html += `</ul></div>`;
             }
-
-            if (data.resume_tips && data.resume_tips.length) {
+            if (data.resume_tips?.length) {
               html += `<div class="modal-section"><h4>Resume Edits to Make</h4><ul>`;
               data.resume_tips.forEach(t => { html += `<li>${t}</li>`; });
               html += `</ul></div>`;
             }
-
             if (data.cover_angle) {
               html += `<div class="modal-section"><h4>Cover Letter Angle</h4><p>${data.cover_angle}</p></div>`;
             }
-
-            if (data.keywords && data.keywords.length) {
-              html += `<div class="modal-section"><h4>Keywords to Include</h4>`;
-              html += `<div class="kw-list">`;
+            if (data.keywords?.length) {
+              html += `<div class="modal-section"><h4>Keywords to Include</h4><div class="kw-list">`;
               data.keywords.forEach(k => { html += `<span class="kw">${k}</span>`; });
               html += `</div></div>`;
             }
-
             document.getElementById('tips-content').innerHTML = html || '<p>No feedback available.</p>';
           })
-          .catch(err => {
+          .catch(() => {
             document.getElementById('tips-content').innerHTML =
               `<div class="modal-error">Failed to load feedback. Please try again.</div>`;
           });
       }
-
-      function closeTipsModal(event) {
-        if (event.target === document.getElementById('tips-modal')) {
+      function closeTipsModal(e) {
+        if (e.target === document.getElementById('tips-modal'))
           document.getElementById('tips-modal').style.display = 'none';
-        }
       }
+
+      // ── Save selected jobs ────────────────────────────────────────────────
+      function saveSelected() {
+        const checked = document.querySelectorAll('input[name="selected_jobs"]:checked');
+        const indices = Array.from(checked).map(cb => parseInt(cb.value));
+        if (!indices.length) return;
+        const btn = document.getElementById('save-sel-btn');
+        btn.disabled = true;
+        btn.textContent = 'Saving\u2026';
+        fetch('/api/save-jobs', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({cache_key: CACHE_KEY, indices: indices})
+        }).then(r => r.json()).then(data => {
+          if (data.ok) {
+            btn.textContent = `\u2713 Saved ${data.saved}`;
+            setTimeout(() => { btn.disabled = false; btn.textContent = '\u2605 Save Jobs'; }, 2500);
+          } else {
+            btn.textContent = 'Error — retry';
+            btn.disabled = false;
+          }
+        }).catch(() => { btn.textContent = 'Error — retry'; btn.disabled = false; });
+      }
+
+      // ── Init: apply any pre-set URL filters on load ───────────────────────
+      applyFilters();
     </script>
   </body>
 </html>

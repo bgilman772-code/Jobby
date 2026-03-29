@@ -82,12 +82,13 @@
 
     <script>
       const steps = {
-        starting:  { label: 'Starting up…',                                       pct: 5  },
-        analyzing: { label: 'Analyzing your resume with AI…',                     pct: 20 },
-        searching: { label: 'Searching 400+ company boards & job APIs…',          pct: 45 },
-        filtering: { label: 'Applying filters (salary, location, seniority)…',   pct: 65 },
-        scoring:   { label: 'AI scoring & ranking by skills match + salary…',     pct: 85 },
-        done:      { label: 'Done — loading your matches…',                       pct: 100 },
+        starting:  { label: 'Starting up…',                                              pct: 5  },
+        analyzing: { label: 'Analyzing your resume with AI…',                            pct: 20 },
+        searching: { label: 'Searching 400+ company boards & job APIs for new jobs…',    pct: 45 },
+        filtering:  { label: 'Applying filters (salary, location, seniority)…',         pct: 55 },
+        validating: { label: 'Checking job links — removing expired postings…',          pct: 70 },
+        scoring:    { label: 'AI scoring new jobs (saved jobs load instantly)…',         pct: 85 },
+        done:      { label: 'Done — loading your matches…',                              pct: 100 },
       };
 
       const SOURCES = [
@@ -169,7 +170,14 @@
             if (st === 'done') {
               stopTicker();
               document.getElementById('spinner').style.display = 'none';
-              window.location = data.redirect;
+              const total = data.count || 0;
+              const newC  = data.new_count || 0;
+              const saved = total - newC;
+              if (saved > 0) {
+                document.getElementById('step-label').textContent =
+                  `Done — ${newC} new job${newC !== 1 ? 's' : ''} scored, ${saved} loaded from your library.`;
+              }
+              setTimeout(() => { window.location = data.redirect; }, 800);
             } else if (st === 'error') {
               stopTicker();
               document.getElementById('error').textContent = 'Error: ' + data.error;

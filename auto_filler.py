@@ -29,8 +29,11 @@ import time
 import random
 import threading
 import logging
+import subprocess
+import urllib.request
 from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
+import contextlib
 
 logging.basicConfig(level=logging.INFO, format='[autofill] %(asctime)s %(message)s')
 _log = logging.getLogger('autofill')
@@ -51,7 +54,6 @@ _CHROME_LOCK_FILES = [
     'lockfile', '.lock',
 ]
 
-
 def _clear_profile_locks():
     """Remove stale Chrome singleton lock files so a new instance can start."""
     if not os.path.isdir(BROWSER_PROFILE_DIR):
@@ -64,6 +66,69 @@ def _clear_profile_locks():
                 _log.info('Removed stale Chrome lock: %s', path)
         except Exception as e:
             _log.debug('Could not remove lock file %s: %s', path, e)
+
+_CHROME_DEBUG_PORT = 9222
+_CHROME_PROC = None
+_CHROME_LAUNCH_LOCK = threading.Lock()
+
+
+def _get_chrome_exe() -> str:
+    """Find the Chrome executable on Windows."""
+    candidates = [
+        os.path.expandvars(r'%PROGRAMFILES%\Google\Chrome\Application\chrome.exe'),
+        os.path.expandvars(r'%PROGRAMFILES(X86)%\Google\Chrome\Application\chrome.exe'),
+        os.path.expandvars(r'%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe'),
+        r'C:\Program Files\Google\Chrome\Application\chrome.exe',
+        r'C:\Program Files (x86)\Google\Chrome\Application\chrome.exe',
+    ]
+    return next((p for p in candidates if os.path.exists(p)), None)
+
+
+def _chrome_debug_alive() -> bool:
+    """Return True if Chrome is already listening on the debug port."""
+    try:
+        urllib.request.urlopen(
+            f'http://localhost:{_CHROME_DEBUG_PORT}/json/version', timeout=1
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _ensure_chrome_with_debug() -> str:
+    """Start Chrome with remote-debugging if not already running.
+    Returns the CDP endpoint URL (e.g. 'http://localhost:9222'), or '' on failure.
+    """
+    global _CHROME_PROC
+    with _CHROME_LAUNCH_LOCK:
+        if _chrome_debug_alive():
+            return f'http://localhost:{_CHROME_DEBUG_PORT}'
+        chrome_exe = _get_chrome_exe()
+        if not chrome_exe:
+            _log.warning('_ensure_chrome_with_debug: Chrome executable not found')
+            return ''
+        os.makedirs(BROWSER_PROFILE_DIR, exist_ok=True)
+        _clear_profile_locks()
+        cmd = [
+            chrome_exe,
+            f'--remote-debugging-port={_CHROME_DEBUG_PORT}',
+            f'--user-data-dir={BROWSER_PROFILE_DIR}',
+            '--disable-blink-features=AutomationControlled',
+            '--no-first-run',
+            '--disable-default-apps',
+            '--start-maximized',
+        ]
+        _CHROME_PROC = subprocess.Popen(
+            cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        _log.info('_ensure_chrome_with_debug: launched Chrome pid=%s', _CHROME_PROC.pid)
+        for _ in range(20):
+            time.sleep(0.5)
+            if _chrome_debug_alive():
+                return f'http://localhost:{_CHROME_DEBUG_PORT}'
+        _log.warning('_ensure_chrome_with_debug: Chrome did not become ready')
+        return ''
+
 
 # Stored credentials for job boards that require login (used in headless/Quick Apply mode)
 SITE_CREDENTIALS_PATH = os.path.join(os.path.dirname(__file__), 'site_credentials.json')
@@ -152,7 +217,7 @@ def _auto_login(page, email: str, password: str, entry: dict) -> bool:
 
         # Wait for navigation
         try:
-            page.wait_for_load_state('networkidle', timeout=8000)
+            page.wait_for_load_state('load', timeout=8000)
         except Exception:
             pass
         _random_delay(1.0, 2.0)
@@ -482,15 +547,27 @@ def _fill_common_selects(page, profile: dict, filled: list):
             filled,
         )
 
-    # EEO dropdowns — prefer "Decline to Self Identify" type options
+    # EEO dropdowns — use profile values if set, else decline
     eeo_decline_values = ['Decline', 'I prefer not to answer', 'Prefer not to say',
                           'Prefer not to disclose', 'I do not wish', 'Choose not to identify']
-    for eeo_decline in eeo_decline_values:
-        _try_fill_select(page, ['gender', 'sex'], eeo_decline, filled)
-        _try_fill_select(page, ['race', 'ethnicity', 'racial'], eeo_decline, filled)
-        _try_fill_select(page, ['veteran', 'military', 'protected veteran'], eeo_decline, filled)
-        _try_fill_select(page, ['disability'], eeo_decline, filled)
-        break  # Try each label group with the same decline value list logic
+
+    def _fill_eeo(labels, profile_key, fallback_values):
+        """Fill an EEO dropdown using profile value or decline option."""
+        pval = profile.get(profile_key, '').strip()
+        if pval and pval.lower() not in ('', 'decline', 'prefer not to say'):
+            _try_fill_select(page, labels, pval, filled)
+            # If select fill worked, done; else fall through to decline
+            if any(labels[0].lower() in f.lower() for f in filled):
+                return
+        for dval in fallback_values:
+            _try_fill_select(page, labels, dval, filled)
+            if any(labels[0].lower() in f.lower() for f in filled):
+                return
+
+    _fill_eeo(['gender', 'sex'], 'eeo_gender', eeo_decline_values)
+    _fill_eeo(['race', 'ethnicity', 'racial'], 'eeo_race', eeo_decline_values)
+    _fill_eeo(['veteran', 'military', 'protected veteran'], 'eeo_veteran', eeo_decline_values)
+    _fill_eeo(['disability'], 'eeo_disability', eeo_decline_values)
 
     # Degree level
     degree = profile.get('degree', '') or profile.get('education_level', '')
@@ -667,7 +744,7 @@ def _try_advance_page(page) -> bool:
                 btn.scroll_into_view_if_needed()
                 btn.click()
                 try:
-                    page.wait_for_load_state('networkidle', timeout=5000)
+                    page.wait_for_load_state('load', timeout=5000)
                 except Exception:
                     pass
                 _random_delay(0.5, 1.0)
@@ -708,7 +785,10 @@ def _wait_for_form(page, ats: str, timeout_ms: int = 12000) -> bool:
     selectors_by_ats = {
         'greenhouse': [
             '#application_form',
+            '#application-form',
             'form[action*="apply"]',
+            '[data-testid="application-form"]',
+            'form.application',
             'form[action*="applications"]',
             '#app_fields',
             'input[name="job_application[first_name]"]',
@@ -792,7 +872,7 @@ def _click_apply_button(page, entry: dict) -> bool:
                 _random_delay(0.3, 0.8)
                 btn.click()
                 try:
-                    page.wait_for_load_state('networkidle', timeout=8000)
+                    page.wait_for_load_state('load', timeout=8000)
                 except Exception:
                     pass
                 _random_delay(0.5, 1.0)
@@ -869,8 +949,13 @@ def _fill_by_id(page, id_attr: str, value: str, filled: list, label: str = None)
     return False
 
 
-def _fill_greenhouse(page, profile: dict, first_name: str, last_name: str, filled: list):
+def _fill_greenhouse(page, profile: dict, first_name: str, last_name: str, filled: list,
+                     entry: dict = None):
     """Fill Greenhouse-specific form fields using known name= and id= patterns."""
+    def _msg(m):
+        if entry:
+            _set_message(entry, m)
+    _msg('Filling name and contact fields...')
     field_defs = [
         ('first_name', first_name,
             ['first_name', 'firstName'],
@@ -914,6 +999,7 @@ def _fill_greenhouse(page, profile: dict, first_name: str, last_name: str, fille
     # Cover letter textarea
     cl = profile.get('cover_letter', '')
     if cl and 'cover_letter' not in filled_labels:
+        _msg('Filling cover letter...')
         for sel in ['#cover_letter_text', '#cover_letter',
                     'textarea[name*="cover_letter"]', 'textarea[id*="cover"]', 'textarea']:
             try:
@@ -928,6 +1014,7 @@ def _fill_greenhouse(page, profile: dict, first_name: str, last_name: str, fille
                 pass
 
     # Work auth / sponsorship radios
+    _msg('Filling authorization questions...')
     for labels, value in [
         (['authorized', 'eligible to work', 'work authorization'], profile.get('work_auth', '')),
         (['sponsorship', 'visa'], profile.get('sponsorship', '')),
@@ -1062,6 +1149,85 @@ def _fill_icims(page, profile: dict, first_name: str, last_name: str, filled: li
             pass
 
 
+# ── Q&A bank helpers ─────────────────────────────────────────────────────────
+
+def _load_qa_bank(path: str) -> list:
+    """Load [{question, answer}] from qa_bank.json. Returns [] on any error."""
+    if not path or not os.path.exists(path):
+        return []
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def _save_qa_bank(path: str, bank: list):
+    """Atomically write qa_bank.json."""
+    if not path:
+        return
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(bank, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        _log.warning('Could not save Q&A bank: %s', e)
+
+
+_QA_BANK_LOCK = threading.Lock()
+
+
+def _upsert_qa_bank(path: str, question: str, answer: str):
+    """Thread-safe upsert of a Q&A pair into the bank file."""
+    with _QA_BANK_LOCK:
+        bank = _load_qa_bank(path)
+        q_lower = question.lower().strip()
+        match = next((i for i, e in enumerate(bank)
+                      if e.get('question', '').lower().strip() == q_lower), None)
+        if match is not None:
+            bank[match]['answer'] = answer
+        else:
+            bank.append({'question': question, 'answer': answer})
+        _save_qa_bank(path, bank)
+
+
+def _lookup_qa_bank(bank: list, question: str) -> str:
+    """
+    Return a saved answer if the bank contains a sufficiently similar question.
+    Uses simple word-overlap similarity (no external deps).
+    Returns '' if no good match found.
+    """
+    if not bank or not question:
+        return ''
+    import re as _re2
+    def _tokens(s):
+        return set(_re2.findall(r'[a-z]+', s.lower()))
+
+    q_tokens = _tokens(question)
+    if not q_tokens:
+        return ''
+
+    best_score = 0.0
+    best_answer = ''
+    for entry in bank:
+        saved_q = entry.get('question', '')
+        saved_a = entry.get('answer', '')
+        if not saved_q or not saved_a:
+            continue
+        s_tokens = _tokens(saved_q)
+        if not s_tokens:
+            continue
+        intersection = q_tokens & s_tokens
+        union = q_tokens | s_tokens
+        jaccard = len(intersection) / len(union)
+        if jaccard > best_score:
+            best_score = jaccard
+            best_answer = saved_a
+
+    # Require ≥60% token overlap to consider a match
+    return best_answer if best_score >= 0.60 else ''
+
+
 # ── AI-powered custom question answering ─────────────────────────────────────
 
 _STANDARD_FIELD_NAMES = {
@@ -1087,12 +1253,24 @@ _QUESTION_SIGNALS = [
 ]
 
 
+def _clean_label(text: str) -> str:
+    """Strip required-field markers and whitespace from a label string."""
+    import re as _re
+    t = text.strip()
+    # Remove trailing asterisk(s), "(required)", "required", "(optional)"
+    t = _re.sub(r'\s*\*+\s*$', '', t)
+    t = _re.sub(r'\s*\(required\)\s*$', '', t, flags=_re.I)
+    t = _re.sub(r'\s+required\s*$', '', t, flags=_re.I)
+    t = _re.sub(r'\s*\(optional\)\s*$', '', t, flags=_re.I)
+    return t.strip()
+
+
 def _get_field_label(page, element) -> str:
     """Extract the label/question text associated with a form element."""
     try:
         v = element.get_attribute('aria-label')
         if v and len(v.strip()) > 3:
-            return v.strip()
+            return _clean_label(v)
     except Exception:
         pass
 
@@ -1103,7 +1281,7 @@ def _get_field_label(page, element) -> str:
                 try:
                     text = page.locator(f'#{lid}').inner_text(timeout=500)
                     if text and len(text.strip()) > 3:
-                        return text.strip()
+                        return _clean_label(text)
                 except Exception:
                     pass
     except Exception:
@@ -1116,35 +1294,37 @@ def _get_field_label(page, element) -> str:
             if lbl.count():
                 text = lbl.inner_text(timeout=500)
                 if text and len(text.strip()) > 3:
-                    return text.strip()
+                    return _clean_label(text)
     except Exception:
         pass
 
     try:
         parent_text = element.evaluate("""el => {
             let p = el.parentElement;
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 5; i++) {
                 if (!p) break;
                 const candidates = p.querySelectorAll(
-                    'label, [class*="label"], [class*="question"], [class*="prompt"], legend'
+                    'label, [class*="label"], [class*="question"], [class*="prompt"], legend, h3, h4, p'
                 );
                 for (const c of candidates) {
+                    // Skip if this element contains the input itself
+                    if (c.contains(el)) continue;
                     const t = c.innerText.trim();
-                    if (t.length > 5) return t;
+                    if (t.length > 5 && t.length < 500) return t;
                 }
                 p = p.parentElement;
             }
             return '';
         }""")
         if parent_text and len(parent_text.strip()) > 5:
-            return parent_text.strip()
+            return _clean_label(parent_text)
     except Exception:
         pass
 
     try:
         ph = element.get_attribute('placeholder')
         if ph and len(ph.strip()) > 5:
-            return ph.strip()
+            return _clean_label(ph)
     except Exception:
         pass
 
@@ -1169,20 +1349,41 @@ def _is_custom_question(label: str) -> bool:
     return False
 
 
-def _fill_custom_questions(page, profile: dict, filled: list):
+def _fill_custom_questions(page, profile: dict, filled: list, entry: dict = None):
     """
     Scan for unfilled textareas (and long-text inputs) whose labels look like
     open-ended questions, then use Gemini AI to answer them from the resume.
+    Includes Greenhouse-specific scanning by [id^="question_"] pattern.
     """
     import os
     if not os.environ.get('GEMINI_API_KEY'):
         return
 
-    resume_text    = profile.get('resume_text', '')
-    job_title      = profile.get('_job_title', '')
-    company        = profile.get('_company', '')
+    resume_text     = profile.get('resume_text', '')
+    job_title       = profile.get('_job_title', '')
+    company         = profile.get('_company', '')
     job_description = profile.get('_job_description', '')
-    if not resume_text:
+
+    # Build a profile summary to use as context even when resume_text is thin
+    profile_context = resume_text
+    if not profile_context:
+        parts = []
+        if profile.get('name'):
+            parts.append(f"Name: {profile['name']}")
+        if profile.get('skills'):
+            skills = profile['skills'] if isinstance(profile['skills'], list) else [profile['skills']]
+            parts.append(f"Skills: {', '.join(str(s) for s in skills[:20])}")
+        if profile.get('bio') or profile.get('summary'):
+            parts.append(f"Bio: {profile.get('bio') or profile.get('summary', '')}")
+        if profile.get('target_roles'):
+            roles = profile['target_roles'] if isinstance(profile['target_roles'], list) else [profile['target_roles']]
+            parts.append(f"Target roles: {', '.join(str(r) for r in roles[:5])}")
+        if profile.get('cover_letter'):
+            parts.append(f"Cover letter:\n{profile['cover_letter'][:800]}")
+        profile_context = '\n'.join(parts)
+
+    if not profile_context.strip():
+        _log.warning('_fill_custom_questions: no resume_text or profile context — skipping AI answers')
         return
 
     already_filled_labels = {f.split(':')[0].lower().strip() for f in filled}
@@ -1192,7 +1393,112 @@ def _fill_custom_questions(page, profile: dict, filled: list):
     except ImportError:
         return
 
-    # --- Scan visible textareas ---
+    # Load Q&A bank once for this fill session
+    qa_bank_path = profile.get('_qa_bank_path', '')
+    qa_bank = _load_qa_bank(qa_bank_path)
+    _log.info('Q&A bank loaded: %d entries from %s', len(qa_bank), qa_bank_path or '(none)')
+
+    def _answer_element(el, is_greenhouse_question=False):
+        """Fill a single textarea/input, using bank first then AI. Returns True on success."""
+        try:
+            current_val = el.input_value(timeout=500)
+            if current_val and len(current_val.strip()) > 10:
+                return False
+
+            label = _get_field_label(page, el)
+            if not label:
+                return False
+
+            label_key = label.lower().strip()
+            if any(label_key.startswith(k) for k in ('cover letter', 'cover_letter')):
+                return False
+            if label_key in already_filled_labels:
+                return False
+            # For Greenhouse question_ IDs, skip the _is_custom_question heuristic —
+            # the ID pattern already confirms it's a custom question.
+            if not is_greenhouse_question and not _is_custom_question(label):
+                return False
+
+            # ── Check bank first ──────────────────────────────────────────
+            answer = _lookup_qa_bank(qa_bank, label)
+            source = 'bank'
+            if answer:
+                _log.info('Q&A bank hit for: %s', label[:80])
+                if entry:
+                    _set_message(entry, f'Using saved answer for: {label[:60]}')
+            else:
+                # ── Fallback to Gemini ────────────────────────────────────
+                _log.info('AI answering question: %s', label[:80])
+                if entry:
+                    _set_message(entry, f'Generating answer for: {label[:60]}...')
+                answer = answer_application_question(
+                    label, profile_context, job_title, company, job_description, profile
+                )
+                source = 'AI'
+
+            if not answer:
+                return False
+
+            el.scroll_into_view_if_needed(timeout=2000)
+            el.click()
+            time.sleep(random.uniform(0.05, 0.15))
+            el.fill(answer)
+            filled.append(f'Q: {label[:60]} ({source} answered)')
+            if entry:
+                _set_message(entry, f'Filled: {label[:60]}')
+            already_filled_labels.add(label_key)
+            _random_delay(0.1, 0.3)
+
+            # ── Persist AI answers to bank for future reuse ───────────────
+            if source == 'AI' and qa_bank_path:
+                _upsert_qa_bank(qa_bank_path, label, answer)
+                # Keep in-memory bank in sync so this session also benefits
+                q_lower = label.lower().strip()
+                match = next((i for i, e in enumerate(qa_bank)
+                              if e.get('question', '').lower().strip() == q_lower), None)
+                if match is not None:
+                    qa_bank[match]['answer'] = answer
+                else:
+                    qa_bank.append({'question': label, 'answer': answer})
+
+            return True
+        except Exception as _e:
+            _log.debug('_answer_element skip: %s', _e)
+            return False
+
+    # --- Greenhouse-specific: scan [id^="question_"] elements first ---
+    # In old Greenhouse boards, each custom question textarea/input has id="question_XXXXXX".
+    # In new React boards, the container div has that id and the input is a child.
+    # We trust they're real questions without needing _is_custom_question heuristics.
+    try:
+        gh_els = page.locator('[id^="question_"]').all()
+        if gh_els and entry:
+            _set_message(entry, f'Found {len(gh_els)} Greenhouse question field(s) — answering with AI...')
+        for el in gh_els:
+            try:
+                tag = el.evaluate('el => el.tagName.toLowerCase()')
+                if tag == 'textarea':
+                    _answer_element(el, is_greenhouse_question=True)
+                elif tag == 'input':
+                    t = el.get_attribute('type') or 'text'
+                    if t.lower() == 'text':
+                        _answer_element(el, is_greenhouse_question=True)
+                elif tag in ('div', 'section', 'fieldset'):
+                    # Container — find textarea or text input inside it
+                    for child_sel in ['textarea', 'input[type="text"]']:
+                        try:
+                            child = el.locator(child_sel).first
+                            if child.count() and child.is_visible(timeout=400):
+                                _answer_element(child, is_greenhouse_question=True)
+                                break
+                        except Exception:
+                            pass
+            except Exception as _e:
+                _log.debug('GH question_ scan skip: %s', _e)
+    except Exception:
+        pass
+
+    # --- Generic: scan visible textareas ---
     try:
         textareas = page.locator('textarea:visible').all()
     except Exception:
@@ -1200,38 +1506,63 @@ def _fill_custom_questions(page, profile: dict, filled: list):
 
     for ta in textareas:
         try:
-            current_val = ta.input_value(timeout=500)
-            if current_val and len(current_val.strip()) > 10:
-                continue
+            _answer_element(ta, is_greenhouse_question=False)
+        except Exception as _e:
+            _log.debug('_fill_custom_questions textarea skip: %s', _e)
+            continue
 
-            label = _get_field_label(page, ta)
+    # --- Scan unfilled selects with non-trivial options (education, experience, etc.) ---
+    try:
+        selects = page.locator('select:visible').all()
+    except Exception:
+        selects = []
+
+    _SELECT_SKIP = {'country', 'state', 'province', 'gender', 'ethnicity', 'race',
+                    'veteran', 'disability', 'pronouns', 'currency', 'timezone'}
+
+    for sel_el in selects:
+        try:
+            current = sel_el.input_value(timeout=500)
+            if current and current not in ('', '0', 'none', 'select', 'please select'):
+                continue  # already has a value
+            label = _get_field_label(page, sel_el)
             if not label:
                 continue
-
             label_key = label.lower().strip()
-            if any(label_key.startswith(k) for k in ('cover letter', 'cover_letter')):
+            if any(s in label_key for s in _SELECT_SKIP):
                 continue
             if label_key in already_filled_labels:
                 continue
-            if not _is_custom_question(label):
+
+            # Get available options
+            options = sel_el.locator('option').all_inner_texts()
+            options = [o.strip() for o in options if o.strip()
+                       and o.strip().lower() not in ('', 'select', 'please select', '--')]
+            if not options:
                 continue
 
-            _log.info('AI answering question: %s', label[:80])
+            _log.info('AI picking select option for: %s', label[:60])
+            # Ask AI which option best fits the candidate
+            prompt_q = (f'For the dropdown question "{label}", the available options are: '
+                        f'{", ".join(options[:20])}. Which option best fits this candidate? '
+                        f'Reply with ONLY the exact option text, nothing else.')
             answer = answer_application_question(
-                label, resume_text, job_title, company, job_description, profile
+                prompt_q, resume_text, job_title, company, job_description, profile
             )
             if not answer:
                 continue
-
-            ta.click()
-            time.sleep(random.uniform(0.05, 0.15))
-            ta.fill(answer)
-            filled.append(f'Q: {label[:60]} (AI answered)')
-            already_filled_labels.add(label_key)
-            _random_delay(0.1, 0.3)
-
+            # Find closest matching option
+            answer_lower = answer.strip().lower()
+            best = next((o for o in options if o.lower() == answer_lower), None)
+            if not best:
+                best = next((o for o in options if answer_lower in o.lower()), None)
+            if best:
+                sel_el.select_option(label=best)
+                filled.append(f'Q: {label[:60]} → {best} (AI selected)')
+                already_filled_labels.add(label_key)
+                _random_delay(0.1, 0.2)
         except Exception as _e:
-            _log.debug('_fill_custom_questions textarea skip: %s', _e)
+            _log.debug('_fill_custom_questions select skip: %s', _e)
             continue
 
     # --- Scan visible text inputs whose labels look like open questions ---
@@ -1287,7 +1618,7 @@ def _run_fill_pass(page, ats: str, profile: dict, first_name: str, last_name: st
 
     # ── ATS-specific filling (direct selectors) ────────────────────────────
     if ats == 'greenhouse':
-        _fill_greenhouse(page, profile, first_name, last_name, filled)
+        _fill_greenhouse(page, profile, first_name, last_name, filled, entry)
     elif ats == 'lever':
         _fill_lever(page, profile, first_name, last_name, filled)
     elif ats == 'workday':
@@ -1350,7 +1681,8 @@ def fill_application_async(app_id: str, job_url: str, profile: dict, resume_path
         (['email', 'e-mail', 'email address'],              profile.get('email', '')),
         (['phone', 'mobile', 'telephone', 'cell'],          profile.get('phone', '')),
         (['linkedin', 'linkedin url', 'linkedin profile'],  profile.get('linkedin', '')),
-        (['website', 'portfolio', 'personal site', 'github'], profile.get('website', '')),
+        (['website', 'portfolio', 'personal site'],           profile.get('website', '')),
+        (['github', 'github url', 'github profile', 'github link'], profile.get('github', '')),
         (['city', 'location', 'current city'],              profile.get('city', '')),
         (['salary', 'desired salary', 'expected salary', 'expected compensation',
           'desired compensation', 'salary expectation', 'pay expectation'],
@@ -1386,14 +1718,74 @@ def fill_application_async(app_id: str, job_url: str, profile: dict, resume_path
     entry['ats'] = ats
     browser = None
     context = None
-    try:
-        with sync_playwright() as p:
-            _set_message(entry, 'Launching Chrome browser...')
-            if entry.get('headless'):
-                browser, context = _stealth_context(p, headless=True)
+    page = None
+    _headless = entry.get('headless', False)
+
+    @contextlib.contextmanager
+    def _mk_browser():
+        if _headless:
+            _pw = sync_playwright().start()
+            _b, _c = _stealth_context(_pw, headless=True)
+            try:
+                yield _b, _c
+            finally:
+                try: _c.close()
+                except Exception: pass
+                try: _b.close()
+                except Exception: pass
+                try: _pw.stop()
+                except Exception: pass
+        else:
+            # Connect to the user's existing Chrome via CDP so fills open as
+            # new tabs in the same window rather than launching a new browser.
+            _cdp_url = _ensure_chrome_with_debug()
+            _pw = sync_playwright().start()
+            if _cdp_url:
+                _b = _pw.chromium.connect_over_cdp(_cdp_url)
+                # Use the default (first) context so cookies/sessions are preserved
+                _c = _b.contexts[0] if _b.contexts else _b.new_context()
             else:
-                # Persistent context saves login cookies between runs
-                browser, context = _stealth_persistent_context(p)
+                # Fallback: launch a fresh persistent context
+                _log.warning('CDP unavailable — falling back to launch_persistent_context')
+                _b = None
+                _clear_profile_locks()
+                launch_args = [
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-infobars',
+                    '--no-first-run',
+                    '--disable-default-apps',
+                    '--start-maximized',
+                ]
+                _c = _pw.chromium.launch_persistent_context(
+                    BROWSER_PROFILE_DIR,
+                    headless=False,
+                    args=launch_args,
+                    user_agent=(
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+                        'AppleWebKit/537.36 (KHTML, like Gecko) '
+                        'Chrome/122.0.0.0 Safari/537.36'
+                    ),
+                    locale='en-US',
+                    timezone_id='America/New_York',
+                    no_viewport=True,
+                )
+            try:
+                yield _b, _c
+            finally:
+                # Disconnect from Chrome but leave it open for the next fill
+                try:
+                    if _cdp_url and _b:
+                        _b.disconnect()
+                except Exception:
+                    pass
+                try:
+                    _pw.stop()
+                except Exception:
+                    pass
+
+    try:
+        with _mk_browser() as (browser, context):
+            _set_message(entry, 'Launching Chrome browser...')
             _set_message(entry, 'Browser launched. Opening job page...')
             page = context.new_page()
 
@@ -1401,11 +1793,15 @@ def fill_application_async(app_id: str, job_url: str, profile: dict, resume_path
             _set_message(entry, f'Navigating to job page ({ats.upper()} detected)...')
 
             nav_url = job_url
-            if ats == 'greenhouse' and 'boards.greenhouse.io' in job_url:
+            if ats == 'greenhouse':
                 base_url = job_url.split('?')[0].rstrip('/')
-                if not base_url.endswith('/apply'):
-                    nav_url = base_url + '/apply'
-                    _log.info('Greenhouse direct apply URL: %s', nav_url)
+                if 'job-boards.greenhouse.io' in job_url:
+                    # New Greenhouse React boards — form is already on the page, no /apply needed
+                    nav_url = base_url
+                elif 'boards.greenhouse.io' in job_url or 'greenhouse.io' in job_url:
+                    if not base_url.endswith('/apply'):
+                        nav_url = base_url + '/apply'
+                _log.info('Greenhouse nav URL: %s', nav_url)
             elif ats == 'lever' and 'jobs.lever.co' in job_url:
                 base_url = job_url.split('?')[0].rstrip('/')
                 if not base_url.endswith('/apply'):
@@ -1415,7 +1811,36 @@ def fill_application_async(app_id: str, job_url: str, profile: dict, resume_path
             page.goto(nav_url, wait_until='domcontentloaded', timeout=30000)
             if not entry.get('headless'):
                 page.bring_to_front()
-            _random_delay(0.5, 1.0)
+            # Give React/SPA forms extra time to hydrate
+            if ats == 'greenhouse':
+                _set_message(entry, 'Waiting for Greenhouse form to load...')
+                _random_delay(2.0, 3.0)
+                # Wait for the basic form input to appear
+                try:
+                    page.wait_for_selector(
+                        '#first_name, input[name="job_application[first_name]"], '
+                        'input[id*="first"], input[type="text"]:visible',
+                        timeout=10000,
+                    )
+                except Exception:
+                    pass
+                # Extra wait for custom question fields (async hydration)
+                try:
+                    page.wait_for_selector('[id^="question_"], textarea:visible', timeout=6000)
+                except Exception:
+                    pass
+                _random_delay(0.5, 1.0)
+            elif ats in ('lever', 'ashby', 'workday'):
+                _random_delay(1.5, 2.5)
+                try:
+                    page.wait_for_selector(
+                        'input[type="text"]:visible, textarea:visible',
+                        timeout=8000,
+                    )
+                except Exception:
+                    pass
+            else:
+                _random_delay(0.5, 1.0)
 
             # Detect common error pages
             try:
@@ -1493,7 +1918,12 @@ def fill_application_async(app_id: str, job_url: str, profile: dict, resume_path
                     'Please log in in the browser window, then click '
                     '"I\'ve logged in \u2014 Continue" below.')
                 entry['status'] = 'awaiting_login'
-                entry['login_event'].wait(timeout=600)
+                signalled = entry['login_event'].wait(timeout=600)
+                if not signalled:
+                    entry['status'] = 'cancelled'
+                    entry['error'] = 'Login timed out after 10 minutes — no action taken.'
+                    _set_message(entry, entry['error'])
+                    return
                 if entry.get('login_cancelled'):
                     entry['status'] = 'cancelled'
                     _set_message(entry, 'Cancelled by user during login.')
@@ -1529,9 +1959,9 @@ def fill_application_async(app_id: str, job_url: str, profile: dict, resume_path
                            field_map, radio_map, textarea_map, resume_path, filled, entry)
 
             # ── AI-powered custom question answering ──────────────────────
-            if profile.get('resume_text') and os.environ.get('GEMINI_API_KEY'):
+            if os.environ.get('GEMINI_API_KEY'):
                 _set_message(entry, 'Scanning for custom questions to answer with AI...')
-                _fill_custom_questions(page, profile, filled)
+                _fill_custom_questions(page, profile, filled, entry)
 
             # ── Multi-page form: advance up to 3 more pages ───────────────
             for _page_num in range(3):
@@ -1541,8 +1971,8 @@ def fill_application_async(app_id: str, job_url: str, profile: dict, resume_path
                 _set_message(entry, f'Advancing to next form page (pass {_page_num + 2})...')
                 _run_fill_pass(page, ats, profile, first_name, last_name,
                                field_map, radio_map, textarea_map, resume_path, filled, entry)
-                if profile.get('resume_text') and os.environ.get('GEMINI_API_KEY'):
-                    _fill_custom_questions(page, profile, filled)
+                if os.environ.get('GEMINI_API_KEY'):
+                    _fill_custom_questions(page, profile, filled, entry)
 
             entry['filled_fields'] = filled
             count = len(filled)
@@ -1599,10 +2029,15 @@ def fill_application_async(app_id: str, job_url: str, profile: dict, resume_path
 
                 entry['status'] = 'awaiting_confirmation'
 
-                # Wait for user to confirm or cancel (10 minute timeout)
-                entry['event'].wait(timeout=600)
+                # Wait for user to confirm or cancel (15 minute timeout)
+                signalled = entry['event'].wait(timeout=900)
 
-                if entry.get('confirmed'):
+                if not signalled:
+                    entry['status'] = 'cancelled'
+                    entry['error'] = 'Application timed out — no confirmation received after 15 minutes.'
+                    _set_message(entry, entry['error'])
+                    # Fall through to cleanup
+                elif entry.get('confirmed'):
                     _set_message(entry, 'Submitting application...')
                     submit_btn = _find_submit_button(page)
                     if submit_btn:
@@ -1620,43 +2055,12 @@ def fill_application_async(app_id: str, job_url: str, profile: dict, resume_path
                     _set_message(entry, 'Application cancelled by user.')
 
             _random_delay(0.5, 1.0)
-            try:
-                context.close()
-            except Exception:
-                pass
-            if browser:
-                try:
-                    browser.close()
-                except Exception:
-                    pass
-            # Release the persistent profile lock after the context is closed
-            if not entry.get('headless') and _PROFILE_LOCK.locked():
-                try:
-                    _PROFILE_LOCK.release()
-                except RuntimeError:
-                    pass
 
     except Exception as e:
         _log.error('fill_application_async FAILED app_id=%s: %s', app_id, e, exc_info=True)
         entry['status'] = 'error'
         entry['error'] = str(e)
         _set_message(entry, f'Error: {e}')
-        try:
-            if context:
-                context.close()
-        except Exception:
-            pass
-        try:
-            if browser:
-                browser.close()
-        except Exception:
-            pass
-        # Release the persistent profile lock on error too
-        if not entry.get('headless') and _PROFILE_LOCK.locked():
-            try:
-                _PROFILE_LOCK.release()
-            except RuntimeError:
-                pass
     finally:
         _log.info('fill_application_async done app_id=%s status=%s', app_id, entry.get('status'))
         entry['completion_event'].set()

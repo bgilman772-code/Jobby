@@ -127,9 +127,10 @@
     {% endif %}
 
     <div class="notice">
-      A <strong>Chrome browser window</strong> is opening on your desktop — check your taskbar.
-      It will navigate to the job page and fill in your details automatically.
-      <strong>Nothing is submitted until you click "Confirm &amp; Submit" below.</strong>
+      A <strong>Chrome browser window</strong> is opening — check your taskbar.
+      It will navigate to the job page and fill in your details.
+      Once filling is complete, <strong>switch back here</strong> and click
+      <strong>"Confirm &amp; Submit"</strong> to submit. Nothing is sent until you confirm.
     </div>
 
     <!-- Status box -->
@@ -152,8 +153,8 @@
     </div>
 
     <div class="countdown-bar" id="countdown-bar">
-      Review the Chrome window and fill any remaining fields, then confirm below.
-      Session expires in <span id="countdown-timer">10:00</span>.
+      <strong>Switch to the Chrome window</strong>, review the filled form, complete any remaining fields, then click <strong>Confirm &amp; Submit</strong> below.
+      Session expires in <span id="countdown-timer">15:00</span>.
     </div>
 
     <!-- Login-required actions -->
@@ -169,6 +170,12 @@
     <div class="actions" id="action-btns" style="display:none">
       <button class="btn btn-confirm" id="confirm-btn" onclick="doConfirm()">
         Confirm &amp; Submit Application
+      </button>
+      <button class="btn" id="manual-apply-btn"
+              style="background:#1a5c8a;color:white;font-size:0.87rem;padding:9px 16px"
+              onclick="doMarkApplied()"
+              title="If you submitted manually in the browser, click here to log it">
+        I Applied Manually
       </button>
       <button class="btn btn-cancel" id="cancel-btn" onclick="doCancel()">
         Cancel
@@ -200,7 +207,7 @@
         navigating:            '<span class="spin-ring"></span>',
         filling:               '<span class="spin-ring"></span>',
         awaiting_login:        '&#128274;',
-        awaiting_confirmation: '&#10003;',
+        awaiting_confirmation: '&#9998;',
         submitted:             '&#10003;',
         cancelled:             '&mdash;',
         error:                 '&#215;',
@@ -210,8 +217,8 @@
         navigating:            'Browser open \u2014 navigating to job page\u2026',
         filling:               'Filling in your information\u2026',
         awaiting_login:        'Login required \u2014 please log in in the browser window.',
-        awaiting_confirmation: 'Form filled \u2014 review the Chrome window, then confirm below.',
-        submitted:             'Application submitted.',
+        awaiting_confirmation: 'Form filled \u2014 switch to Chrome, review it, then click \u201cConfirm & Submit\u201d below.',
+        submitted:             'Application submitted \u2014 saved to your tracker.',
         cancelled:             'Application cancelled.',
         error:                 'An error occurred.',
       };
@@ -244,7 +251,7 @@
         return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       }
 
-      let countdownSec = 600;
+      let countdownSec = 900;
       let countdownInterval = null;
       function startCountdown() {
         const bar = document.getElementById('countdown-bar');
@@ -290,20 +297,11 @@
       } catch(e) {}
       saveSession();
 
-      let pollCount  = 0;
-      const POLL_MAX = 150;
-      let confirmed  = false;
-      let terminal   = false;
+      let confirmed = false;
+      let terminal  = false;
 
       function poll() {
         if (terminal) return;
-        pollCount++;
-        if (pollCount > POLL_MAX) {
-          document.getElementById('status-text').textContent =
-            'Timed out waiting — check the browser window.';
-          appendLog('Status poll timed out. Check the Chrome window manually.');
-          return;
-        }
 
         fetch('/apply-status/' + APP_ID)
           .then(r => r.json())
@@ -346,6 +344,7 @@
 
             if (st === 'awaiting_confirmation') {
               document.getElementById('action-btns').style.display = 'flex';
+              document.getElementById('focus-row').style.display = 'flex';
               if (!countdownInterval) startCountdown();
             }
 
@@ -372,10 +371,19 @@
             if (TERMINAL.includes(st)) {
               terminal = true;
               document.getElementById('action-btns').style.display = 'none';
+              document.getElementById('login-btns').style.display = 'none';
               if (countdownInterval) clearInterval(countdownInterval);
               clearSession();
               if (st === 'submitted') {
                 document.getElementById('done-banner').style.display = 'block';
+                document.getElementById('focus-row').style.display = 'none';
+              } else if (st === 'cancelled' && data.error) {
+                // Timeout or explicit cancel with a message
+                const errEl = document.getElementById('error-msg');
+                errEl.innerHTML = escHtml(data.error) +
+                  '<br><a href="/preview/' + CACHE_KEY + '/' + IDX +
+                  '" style="color:var(--brand-mid);font-size:0.85rem">&larr; Back to preview to try again</a>';
+                errEl.style.display = 'block';
                 document.getElementById('focus-row').style.display = 'none';
               }
               return;
@@ -415,6 +423,22 @@
         document.getElementById('confirm-btn').disabled = true;
         fetch('/cancel-apply/' + APP_ID, { method: 'POST' })
           .catch(() => {});
+      }
+
+      function doMarkApplied() {
+        const btn = document.getElementById('manual-apply-btn');
+        btn.disabled = true;
+        btn.textContent = 'Logging\u2026';
+        fetch('/mark-applied/' + APP_ID, { method: 'POST' })
+          .then(r => r.json())
+          .then(() => {
+            btn.textContent = '\u2713 Logged as Applied';
+            // Also cancel the Playwright session so the browser doesn't wait
+            fetch('/cancel-apply/' + APP_ID, { method: 'POST' }).catch(() => {});
+            document.getElementById('done-banner').style.display = 'block';
+            document.getElementById('action-btns').style.display = 'none';
+          })
+          .catch(() => { btn.disabled = false; btn.textContent = 'I Applied Manually'; });
       }
 
       setTimeout(poll, 1200);

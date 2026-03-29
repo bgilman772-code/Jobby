@@ -132,20 +132,49 @@ def answer_application_question(question: str, resume_text: str,
     client = _client()
     candidate_name = profile.get('name') or 'the candidate'
 
+    # Build structured candidate context from profile fields + resume text
+    candidate_sections = []
+    if resume_text and resume_text.strip():
+        candidate_sections.append(f"RESUME:\n{resume_text[:2500]}")
+
+    # Structured profile fields supplement or replace thin resume text
+    profile_lines = []
+    if profile.get('city'):
+        profile_lines.append(f"Location: {profile['city']}")
+    if profile.get('linkedin'):
+        profile_lines.append(f"LinkedIn: {profile['linkedin']}")
+    if profile.get('github'):
+        profile_lines.append(f"GitHub: {profile['github']}")
+    if profile.get('skills'):
+        skills = profile['skills'] if isinstance(profile['skills'], list) else [profile['skills']]
+        profile_lines.append(f"Skills: {', '.join(str(s) for s in skills[:25])}")
+    if profile.get('target_roles'):
+        roles = profile['target_roles'] if isinstance(profile['target_roles'], list) else [profile['target_roles']]
+        profile_lines.append(f"Target roles: {', '.join(str(r) for r in roles[:5])}")
+    if profile.get('bio') or profile.get('summary'):
+        profile_lines.append(f"Summary: {profile.get('bio') or profile.get('summary', '')}")
+    if profile.get('cover_letter'):
+        profile_lines.append(f"Cover letter excerpt:\n{profile['cover_letter'][:600]}")
+    if profile_lines:
+        candidate_sections.append("CANDIDATE PROFILE:\n" + '\n'.join(profile_lines))
+
+    candidate_context = '\n\n'.join(candidate_sections) or f"Candidate name: {candidate_name}"
+
     prompt = (
-        f"You are filling out a job application on behalf of {candidate_name}.\n\n"
+        f"You are filling out a job application on behalf of {candidate_name}.\n"
+        f"Write the answer AS {candidate_name}, in first person, as if they typed it themselves.\n\n"
         f"TARGET JOB:\n"
         f"Company: {company or 'the company'}\n"
         f"Title: {job_title or 'the role'}\n"
         f"Job description excerpt:\n{(job_description or '')[:1500]}\n\n"
-        f"CANDIDATE RESUME:\n{resume_text[:2500]}\n\n"
+        f"CANDIDATE BACKGROUND:\n{candidate_context}\n\n"
         f"APPLICATION QUESTION:\n{question}\n\n"
         f"Instructions:\n"
-        f"- Write a focused, specific answer using real details from the resume\n"
+        f"- Write a focused, specific answer using real details from the candidate's background\n"
         f"- Keep it concise: 2-4 sentences for simple questions, up to 2 short paragraphs for complex ones\n"
-        f"- Write in first person as the candidate\n"
-        f"- Reference specific skills, projects, or experiences from the resume\n"
-        f"- Do NOT make up details not in the resume\n"
+        f"- Write in first person (\"I\", \"my\", \"I have\") as {candidate_name}\n"
+        f"- Reference specific skills, tools, or experiences mentioned in their background\n"
+        f"- Do NOT invent qualifications not present in the candidate's background\n"
         f"- Do NOT use buzzword-heavy filler — be direct and specific\n"
         f"- Return ONLY the answer text, no labels, no markdown formatting"
     )
